@@ -1,0 +1,119 @@
+{
+  "projectType": "sdk-library",
+  "projectName": "Qwen3-TTS",
+  "projectDescription": "A powerful Python SDK for text-to-speech generation with voice cloning, voice design, and streaming capabilities supporting 10 major languages.",
+  "theme": "palm",
+  "primaryColor": "#6366f1",
+  "lightColor": "#818cf8",
+  "darkColor": "#4f46e5",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "installation",
+              "quickstart"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/architecture",
+              "concepts/models",
+              "concepts/tokenizer",
+              "concepts/languages"
+            ]
+          },
+          {
+            "group": "Guides",
+            "pages": [
+              "guides/custom-voice",
+              "guides/voice-design",
+              "guides/voice-cloning",
+              "guides/streaming",
+              "guides/batch-processing",
+              "guides/web-demo"
+            ]
+          },
+          {
+            "group": "Advanced",
+            "pages": [
+              "advanced/fine-tuning",
+              "advanced/vllm-integration",
+              "advanced/performance",
+              "advanced/dashscope-api"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "API Reference",
+        "groups": [
+          {
+            "group": "Model API",
+            "pages": [
+              "api/model/overview",
+              "api/model/qwen3tts-model",
+              "api/model/generation-methods",
+              "api/model/voice-clone-prompt"
+            ]
+          },
+          {
+            "group": "Tokenizer API",
+            "pages": [
+              "api/tokenizer/overview",
+              "api/tokenizer/qwen3tts-tokenizer",
+              "api/tokenizer/encode-decode"
+            ]
+          },
+          {
+            "group": "CLI",
+            "pages": [
+              "api/cli/demo-command"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Resources",
+        "groups": [
+          {
+            "group": "Resources",
+            "pages": [
+              "resources/benchmarks",
+              "resources/examples",
+              "resources/faq",
+              "resources/changelog"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Multiple TTS models supporting custom voice, voice design, and voice cloning",
+    "Ultra-low latency streaming generation (97ms end-to-end synthesis)",
+    "Support for 10 major languages with multilingual and cross-lingual capabilities",
+    "Natural language instruction-based voice control and design",
+    "3-second rapid voice cloning from reference audio",
+    "High-fidelity speech tokenizer (12Hz/25Hz) for audio encoding and decoding"
+  ],
+  "publicApiSurface": [
+    "Qwen3TTSModel.from_pretrained()",
+    "Qwen3TTSModel.generate_custom_voice()",
+    "Qwen3TTSModel.generate_voice_design()",
+    "Qwen3TTSModel.generate_voice_clone()",
+    "Qwen3TTSModel.create_voice_clone_prompt()",
+    "Qwen3TTSModel.get_supported_languages()",
+    "Qwen3TTSModel.get_supported_speakers()",
+    "Qwen3TTSTokenizer.from_pretrained()",
+    "Qwen3TTSTokenizer.encode()",
+    "Qwen3TTSTokenizer.decode()",
+    "VoiceClonePromptItem",
+    "qwen-tts-demo CLI command"
+  ]
+}
