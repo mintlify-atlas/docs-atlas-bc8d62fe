@@ -196,7 +196,7 @@ sf.write("output.wav", wavs[0], sr)
 
 The tokenizer uses **16 hierarchical quantizers** to capture acoustic information:
 
-```
+```text
 Layer 1 (Q0):  Coarse acoustic features (fundamental frequency, energy)
 Layer 2 (Q1):  Refined pitch and loudness contours  
 Layer 3 (Q2):  Spectral envelope (vowel formants)
