@@ -1,0 +1,256 @@
+---
+title: Custom Voice Generation
+description: Generate speech using predefined premium speakers with optional instruction control
+---
+
+The **CustomVoice** models (`Qwen3-TTS-12Hz-1.7B-CustomVoice` and `Qwen3-TTS-12Hz-0.6B-CustomVoice`) provide high-quality speech generation using 9 carefully curated premium speakers, with optional natural language instructions to control tone, emotion, and speaking style.
+
+## Available Speakers
+
+The CustomVoice models include 9 premium speakers covering various combinations of gender, age, language, and dialect:
+
+| Speaker | Voice Description  |  Native Language |
+| --- | --- | --- |
+| Vivian | Bright, slightly edgy young female voice. | Chinese |
+| Serena | Warm, gentle young female voice. | Chinese |
+| Uncle_Fu | Seasoned male voice with a low, mellow timbre. | Chinese |
+| Dylan | Youthful Beijing male voice with a clear, natural timbre. | Chinese (Beijing Dialect) |
+| Eric | Lively Chengdu male voice with a slightly husky brightness. | Chinese (Sichuan Dialect) |
+| Ryan | Dynamic male voice with strong rhythmic drive. | English |
+| Aiden | Sunny American male voice with a clear midrange. | English |
+| Ono_Anna | Playful Japanese female voice with a light, nimble timbre. | Japanese |
+| Sohee | Warm Korean female voice with rich emotion. | Korean |
+
+<Note>
+We recommend using each speaker's native language for the best quality, though each speaker can speak any language supported by the model.
+</Note>
+
+## Single Inference
+
+Generate speech for a single text with a specific speaker:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Generate speech
+wavs, sr = model.generate_custom_voice(
+    text="其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+    language="Chinese",  # Or "Auto" for automatic detection
+    speaker="Vivian",
+    instruct="用特别愤怒的语气说",  # Optional instruction
+)
+
+sf.write("output.wav", wavs[0], sr)
+```
+
+## Batch Inference
+
+Process multiple texts efficiently in a single batch:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Batch generation
+wavs, sr = model.generate_custom_voice(
+    text=[
+        "其实我真的有发现，我是一个特别善于观察别人情绪的人。", 
+        "She said she would be here by noon."
+    ],
+    language=["Chinese", "English"],
+    speaker=["Vivian", "Ryan"],
+    instruct=["", "Very happy."]  # Empty string means no instruction
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+## Language Selection
+
+You can specify the language explicitly or use automatic detection:
+
+```python
+# Automatic language detection
+wavs, sr = model.generate_custom_voice(
+    text="Hello world",
+    language="Auto",  # Or omit the parameter
+    speaker="Ryan",
+)
+
+# Explicit language (recommended for best results)
+wavs, sr = model.generate_custom_voice(
+    text="Hello world",
+    language="English",
+    speaker="Ryan",
+)
+```
+
+<Info>
+Supported languages: Chinese, English, Japanese, Korean, German, French, Russian, Portuguese, Spanish, Italian
+</Info>
+
+## Instruction Control
+
+The 1.7B CustomVoice model supports natural language instructions to control voice characteristics:
+
+```python
+# Emotional control
+wavs, sr = model.generate_custom_voice(
+    text="I can't believe you did that!",
+    language="English",
+    speaker="Ryan",
+    instruct="Say it in a very angry and disappointed tone",
+)
+
+# Speaking style control
+wavs, sr = model.generate_custom_voice(
+    text="Welcome to our presentation today.",
+    language="English",
+    speaker="Aiden",
+    instruct="Speak slowly and professionally, like giving a formal speech",
+)
+
+# Without instruction (natural style)
+wavs, sr = model.generate_custom_voice(
+    text="Good morning everyone!",
+    language="English",
+    speaker="Ryan",
+    # No instruct parameter - uses natural speaking style
+)
+```
+
+<Warning>
+The 0.6B CustomVoice model does not support instruction control. Instructions will be ignored for this model.
+</Warning>
+
+## Checking Supported Speakers and Languages
+
+Query what speakers and languages your model supports:
+
+```python
+# Get list of supported speakers
+speakers = model.get_supported_speakers()
+print("Available speakers:", speakers)
+# Output: ['aiden', 'dylan', 'eric', 'ono_anna', 'ryan', 'serena', 'sohee', 'uncle_fu', 'vivian']
+
+# Get list of supported languages
+languages = model.get_supported_languages()
+print("Available languages:", languages)
+# Output: ['auto', 'chinese', 'english', 'french', 'german', ...]
+```
+
+## Generation Parameters
+
+Customize the generation process with additional parameters:
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text="Hello world",
+    language="English",
+    speaker="Ryan",
+    # Generation parameters
+    max_new_tokens=2048,         # Maximum tokens to generate
+    temperature=0.9,             # Sampling temperature (higher = more random)
+    top_k=50,                    # Top-k sampling
+    top_p=1.0,                   # Nucleus sampling
+    do_sample=True,              # Enable sampling
+    repetition_penalty=1.05,     # Penalty for repetition
+)
+```
+
+## Model Comparison
+
+| Model | Size | Instruction Support | Streaming | Best Use Case |
+|-------|------|---------------------|-----------|---------------|
+| Qwen3-TTS-12Hz-1.7B-CustomVoice | 1.7B | ✅ Yes | ✅ Yes | High-quality with style control |
+| Qwen3-TTS-12Hz-0.6B-CustomVoice | 0.6B | ❌ No | ✅ Yes | Fast, lightweight inference |
+
+## Complete Example
+
+Here's a complete working example from the official examples:
+
+```python examples/test_model_12hz_custom_voice.py
+import time
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+def main():
+    device = "cuda:0"
+    MODEL_PATH = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice/"
+
+    tts = Qwen3TTSModel.from_pretrained(
+        MODEL_PATH,
+        device_map=device,
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+
+    # Single inference with instruction
+    torch.cuda.synchronize()
+    t0 = time.time()
+
+    wavs, sr = tts.generate_custom_voice(
+        text="其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+        language="Chinese",
+        speaker="Vivian",
+        instruct="用特别愤怒的语气说",
+    )
+
+    torch.cuda.synchronize()
+    t1 = time.time()
+    print(f"[CustomVoice Single] time: {t1 - t0:.3f}s")
+
+    sf.write("qwen3_tts_test_custom_single.wav", wavs[0], sr)
+
+    # Batch inference
+    texts = ["其实我真的有发现，我是一个特别善于观察别人情绪的人。", "She said she would be here by noon."]
+    languages = ["Chinese", "English"]
+    speakers = ["Vivian", "Ryan"]
+    instructs = ["", "Very happy."]
+
+    torch.cuda.synchronize()
+    t0 = time.time()
+
+    wavs, sr = tts.generate_custom_voice(
+        text=texts,
+        language=languages,
+        speaker=speakers,
+        instruct=instructs,
+        max_new_tokens=2048,
+    )
+
+    torch.cuda.synchronize()
+    t1 = time.time()
+    print(f"[CustomVoice Batch] time: {t1 - t0:.3f}s")
+
+    for i, w in enumerate(wavs):
+        sf.write(f"qwen3_tts_test_custom_batch_{i}.wav", w, sr)
+
+if __name__ == "__main__":
+    main()
+```
+
+## Next Steps
+
+- Learn about [Voice Design](/guides/voice-design) for creating custom voice characteristics
+- Explore [Voice Cloning](/guides/voice-cloning) to replicate any voice
+- See [Streaming Generation](/guides/streaming) for real-time applications

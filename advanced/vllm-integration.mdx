@@ -1,0 +1,231 @@
+---
+title: vLLM Integration
+description: Deploy Qwen3-TTS with vLLM-Omni for optimized inference
+---
+
+vLLM officially provides day-0 support for Qwen3-TTS through vLLM-Omni! This integration enables efficient deployment and inference for speech generation workloads.
+
+## Overview
+
+vLLM-Omni extends vLLM with multimodal capabilities, including support for text-to-speech models like Qwen3-TTS. Key benefits:
+
+- **Optimized inference**: Faster generation compared to standard PyTorch inference
+- **Efficient memory usage**: Better GPU memory management for batch processing
+- **Production-ready**: Battle-tested serving infrastructure
+- **Continuous optimization**: Ongoing improvements for speed and streaming capabilities
+
+<Note>
+**Current Status**: Only offline inference is supported. Online serving will be supported in future releases.
+</Note>
+
+## Installation
+
+Install vLLM-Omni following the official installation guide:
+
+```bash
+# Clone the vLLM-Omni repository
+git clone https://github.com/vllm-project/vllm-omni.git
+cd vllm-omni
+
+# Install vLLM-Omni
+# Follow installation instructions at:
+# https://docs.vllm.ai/projects/vllm-omni/en/latest/getting_started/quickstart/#installation
+```
+
+For detailed installation steps and dependencies, refer to the [vLLM-Omni official documentation](https://docs.vllm.ai/projects/vllm-omni/en/latest/getting_started/quickstart/#installation).
+
+## Offline Inference
+
+vLLM-Omni supports all three Qwen3-TTS task types: CustomVoice, VoiceDesign, and Base (voice cloning).
+
+### Setup
+
+Navigate to the examples directory:
+
+```bash
+cd vllm-omni/examples/offline_inference/qwen3_tts
+```
+
+### CustomVoice Task
+
+Generate speech using predefined speaker voices with optional instruction control.
+
+**Single sample:**
+
+```bash
+python end2end.py --query-type CustomVoice
+```
+
+**Batch inference** (multiple prompts in one run):
+
+```bash
+python end2end.py --query-type CustomVoice --use-batch-sample
+```
+
+The CustomVoice task lets you select from 9 premium speaker voices and control generation with natural language instructions like "speak with an angry tone" or "say this very happily."
+
+### VoiceDesign Task
+
+Create custom voices based on natural language descriptions.
+
+**Single sample:**
+
+```bash
+python end2end.py --query-type VoiceDesign
+```
+
+**Batch inference:**
+
+```bash
+python end2end.py --query-type VoiceDesign --use-batch-sample
+```
+
+The VoiceDesign task accepts detailed voice descriptions (e.g., "体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果") and generates matching audio.
+
+### Base Task (Voice Clone)
+
+Clone a voice from a reference audio sample.
+
+**Single sample with in-context learning (ICL) mode:**
+
+```bash
+python end2end.py --query-type Base --mode-tag icl
+```
+
+In ICL mode, you provide:
+- Reference audio (`ref_audio`)
+- Reference transcript (`ref_text`)
+- Target text to synthesize
+
+The model clones the voice characteristics from the reference and applies them to the target text.
+
+### Supported Models
+
+All Qwen3-TTS models are supported via vLLM-Omni:
+
+| Model | Task Type | vLLM Support |
+|-------|-----------|-------------|
+| Qwen3-TTS-12Hz-1.7B-CustomVoice | CustomVoice | ✅ |
+| Qwen3-TTS-12Hz-0.6B-CustomVoice | CustomVoice | ✅ |
+| Qwen3-TTS-12Hz-1.7B-VoiceDesign | VoiceDesign | ✅ |
+| Qwen3-TTS-12Hz-1.7B-Base | Voice Clone | ✅ |
+| Qwen3-TTS-12Hz-0.6B-Base | Voice Clone | ✅ |
+
+## Example Code
+
+Here's what the vLLM-Omni inference code looks like (simplified example):
+
+```python
+from vllm import LLM, SamplingParams
+
+# Initialize the model
+llm = LLM(
+    model="Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    dtype="bfloat16",
+    # Additional vLLM parameters...
+)
+
+# Set generation parameters
+sampling_params = SamplingParams(
+    temperature=0.7,
+    max_tokens=2048,
+)
+
+# For CustomVoice
+prompts = [
+    {
+        "text": "其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+        "language": "Chinese",
+        "speaker": "Vivian",
+        "instruct": "用特别愤怒的语气说"
+    }
+]
+
+# Generate
+outputs = llm.generate(prompts, sampling_params)
+
+# outputs contain the generated audio
+```
+
+<Note>
+For complete working examples, refer to the [vLLM-Omni repository](https://github.com/vllm-project/vllm-omni/tree/main/examples/offline_inference/qwen3_tts).
+</Note>
+
+## Performance Considerations
+
+### Batch Processing
+
+vLLM-Omni excels at batch inference. When processing multiple requests:
+
+- Use `--use-batch-sample` flag for batch processing
+- Larger batches improve GPU utilization
+- Balance batch size with GPU memory constraints
+
+### Memory Management
+
+vLLM automatically manages memory allocation:
+
+- **KV cache optimization**: Efficient attention computation
+- **Paged attention**: Better memory utilization
+- **Dynamic batching**: Automatically groups requests
+
+### Model Selection
+
+Choose the right model for your use case:
+
+| Model Size | Speed | Quality | Use Case |
+|------------|-------|---------|----------|
+| 0.6B | Faster | Good | Real-time, high-throughput |
+| 1.7B | Moderate | Excellent | Production, best quality |
+
+### GPU Recommendations
+
+| Model | Minimum VRAM | Recommended VRAM | Batch Size |
+|-------|--------------|------------------|------------|
+| 0.6B | 8GB | 16GB | 4-16 |
+| 1.7B | 12GB | 24GB | 2-8 |
+
+## Upcoming Features
+
+vLLM-Omni is actively developing additional features:
+
+- **Online serving**: HTTP API for real-time generation
+- **Streaming support**: Stream audio as it's generated
+- **Multi-GPU inference**: Tensor parallelism for large-scale deployment
+- **Quantization**: INT8/INT4 quantization for faster inference
+
+## Comparison: vLLM vs PyTorch
+
+| Feature | PyTorch (qwen-tts) | vLLM-Omni |
+|---------|-------------------|----------|
+| Inference mode | Offline + streaming | Offline (serving coming) |
+| Batch optimization | Manual | Automatic |
+| Memory management | Standard | Optimized (paged attention) |
+| Deployment | Direct Python | Production-ready serving |
+| Speed | Baseline | Optimized |
+| Ease of use | Simple API | Requires setup |
+
+**When to use PyTorch**:
+- Quick prototyping and testing
+- Local demos and experiments
+- Streaming generation (currently)
+- Simple integration needs
+
+**When to use vLLM-Omni**:
+- Production deployments
+- High-throughput batch processing
+- Optimized resource utilization
+- Scalable serving infrastructure
+
+## Resources
+
+- [vLLM-Omni Documentation](https://docs.vllm.ai/projects/vllm-omni/en/latest/getting_started/quickstart/)
+- [vLLM-Omni GitHub Repository](https://github.com/vllm-project/vllm-omni)
+- [Qwen3-TTS Examples](https://github.com/vllm-project/vllm-omni/tree/main/examples/offline_inference/qwen3_tts)
+- [vLLM Main Project](https://github.com/vllm-project/vllm)
+
+## Next Steps
+
+- Optimize inference with [performance tuning](/advanced/performance)
+- Deploy to production using [DashScope API](/advanced/dashscope-api)
+- Fine-tune models with the [fine-tuning guide](/advanced/fine-tuning)

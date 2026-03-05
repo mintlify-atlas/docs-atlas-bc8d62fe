@@ -1,0 +1,572 @@
+---
+title: "FAQ"
+description: "Frequently asked questions about Qwen3-TTS"
+---
+
+## Installation & Setup
+
+<AccordionGroup>
+  <Accordion title="How do I install Qwen3-TTS?">
+    The easiest way is via PyPI:
+    
+    ```bash
+    pip install qwen-tts
+    ```
+    
+    For development or local modifications:
+    
+    ```bash
+    git clone https://github.com/QwenLM/Qwen3-TTS.git
+    cd Qwen3-TTS
+    pip install -e .
+    ```
+    
+    We recommend using Python 3.12 in a clean conda environment.
+  </Accordion>
+  
+  <Accordion title="Do I need FlashAttention?">
+    FlashAttention-2 is **optional** but **highly recommended** for:
+    - Reduced GPU memory usage
+    - Faster inference
+    - Better performance
+    
+    Install with:
+    ```bash
+    pip install flash-attn --no-build-isolation
+    ```
+    
+    If you have limited RAM (< 96GB) and many CPU cores:
+    ```bash
+    MAX_JOBS=4 pip install flash-attn --no-build-isolation
+    ```
+    
+    FlashAttention requires compatible hardware (Ampere or newer GPUs). See the [FlashAttention repo](https://github.com/Dao-AILab/flash-attention) for details.
+  </Accordion>
+  
+  <Accordion title="What are the system requirements?">
+    **Minimum:**
+    - Python 3.9 or newer (3.12 recommended)
+    - CUDA-compatible GPU with 8GB+ VRAM
+    - 16GB+ system RAM
+    
+    **Recommended for 1.7B models:**
+    - Python 3.12
+    - NVIDIA GPU with 16GB+ VRAM (A100, RTX 4090, etc.)
+    - 32GB+ system RAM
+    - FlashAttention-2 support (Ampere or newer)
+    
+    **For 0.6B models:**
+    - 8GB VRAM is sufficient
+    - 16GB system RAM
+  </Accordion>
+  
+  <Accordion title="Model downloads are very slow. What can I do?">
+    **For users in Mainland China**, use ModelScope for faster downloads:
+    
+    ```bash
+    pip install modelscope
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local_dir ./models/Qwen3-TTS-12Hz-1.7B-CustomVoice
+    ```
+    
+    Then load from the local directory:
+    ```python
+    model = Qwen3TTSModel.from_pretrained(
+        "./models/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        device_map="cuda:0",
+        dtype=torch.bfloat16,
+    )
+    ```
+    
+    **International users** can use Hugging Face:
+    ```bash
+    pip install -U "huggingface_hub[cli]"
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local-dir ./models/Qwen3-TTS-12Hz-1.7B-CustomVoice
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Model Selection
+
+<AccordionGroup>
+  <Accordion title="Which model should I use?">
+    Choose based on your use case:
+    
+    **CustomVoice (1.7B or 0.6B)**
+    - Use 9 predefined premium voices
+    - Control tone/emotion with natural language instructions
+    - Best for: Apps with fixed character voices, production deployments
+    
+    **VoiceDesign (1.7B only)**
+    - Generate voices from text descriptions
+    - Create unique voices on demand
+    - Best for: Creative applications, voice prototyping, character design
+    
+    **Base (1.7B or 0.6B)**
+    - Clone any voice from 3-second reference audio
+    - Highest quality cloning
+    - Best for: Personalization, voice transfer, fine-tuning base
+    
+    **0.6B vs 1.7B:**
+    - 0.6B: Faster, less memory, good quality
+    - 1.7B: Best quality, more natural, better instruction following
+  </Accordion>
+  
+  <Accordion title="What's the difference between 12Hz and 25Hz tokenizers?">
+    **12Hz Tokenizer (Recommended):**
+    - Higher quality audio reconstruction
+    - Better content consistency (lower WER)
+    - Models: Qwen3-TTS-12Hz-(0.6B/1.7B)-(CustomVoice/VoiceDesign/Base)
+    
+    **25Hz Tokenizer:**
+    - Faster inference
+    - Slightly lower quality
+    - Models: Qwen3-TTS-25Hz-(0.6B/1.7B)-(CustomVoice/Base)
+    
+    For most applications, use **12Hz models** for best quality.
+  </Accordion>
+  
+  <Accordion title="Can I fine-tune the models?">
+    Yes! The **Base models** (0.6B and 1.7B) are designed for fine-tuning.
+    
+    See the [Fine-tuning Guide](https://github.com/QwenLM/Qwen3-TTS/tree/main/finetuning) for detailed instructions.
+    
+    Fine-tuning is useful for:
+    - Domain-specific vocabulary
+    - Custom language variants or dialects
+    - Specialized voice characteristics
+    - Improved performance on specific tasks
+  </Accordion>
+</AccordionGroup>
+
+## Usage & Features
+
+<AccordionGroup>
+  <Accordion title="What languages are supported?">
+    Qwen3-TTS supports **10 major languages**:
+    
+    - Chinese (Mandarin)
+    - English
+    - Japanese
+    - Korean
+    - German
+    - French
+    - Russian
+    - Portuguese
+    - Spanish
+    - Italian
+    
+    **Plus Chinese dialects:**
+    - Beijing dialect (Dylan)
+    - Sichuan dialect (Eric)
+    
+    All models support all languages. For best quality, use each speaker's native language, though cross-lingual synthesis is supported.
+  </Accordion>
+  
+  <Accordion title="How long does voice cloning take?">
+    Voice cloning with the Base model is very fast:
+    
+    - **First generation with new voice**: 2-4 seconds (includes prompt extraction)
+    - **Subsequent generations with cached prompt**: < 1 second
+    
+    For multiple sentences with the same voice, use reusable prompts:
+    
+    ```python
+    # Create prompt once
+    prompt = model.create_voice_clone_prompt(
+        ref_audio="reference.wav",
+        ref_text="Reference transcript"
+    )
+    
+    # Reuse for multiple generations
+    for text in texts:
+        wavs, sr = model.generate_voice_clone(
+            text=text,
+            language="English",
+            voice_clone_prompt=prompt  # Fast!
+        )
+    ```
+  </Accordion>
+  
+  <Accordion title="What audio formats are supported?">
+    **Input (for voice cloning):**
+    - WAV, MP3, FLAC, OGG (via librosa)
+    - URLs (http/https)
+    - NumPy arrays
+    - Base64 strings
+    - Tuples: `(numpy_array, sample_rate)`
+    
+    **Output:**
+    - NumPy arrays (float32, -1.0 to 1.0)
+    - Sample rate: 16000 Hz
+    
+    Save with soundfile:
+    ```python
+    import soundfile as sf
+    sf.write("output.wav", wavs[0], sr)
+    ```
+  </Accordion>
+  
+  <Accordion title="Does Qwen3-TTS support streaming?">
+    Yes! All models support **streaming generation** for low-latency applications.
+    
+    The Dual-Track hybrid streaming architecture enables:
+    - First audio packet after single character input
+    - End-to-end latency as low as **97ms**
+    - Suitable for real-time interactive scenarios
+    
+    For streaming API usage, see the [DashScope API documentation](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime).
+    
+    Python package streaming support is coming soon.
+  </Accordion>
+  
+  <Accordion title="Can I control speaking rate, pitch, or emotion?">
+    **CustomVoice and VoiceDesign models:** Yes, via natural language instructions.
+    
+    ```python
+    # Emotion control
+    model.generate_custom_voice(
+        text="I can't believe you did that!",
+        speaker="Ryan",
+        instruct="Say it in a very angry tone"
+    )
+    
+    # Speaking rate
+    model.generate_custom_voice(
+        text="Please speak slowly.",
+        speaker="Serena",
+        instruct="Speak very slowly and calmly"
+    )
+    
+    # Voice design with specific characteristics
+    model.generate_voice_design(
+        text="Hello there!",
+        instruct="Male, deep voice, confident and authoritative"
+    )
+    ```
+    
+    **Base model:** Control is limited. The model focuses on high-fidelity cloning and relies on the reference audio's characteristics.
+  </Accordion>
+  
+  <Accordion title="What are the available speakers in CustomVoice?">
+    CustomVoice models include **9 premium speakers**:
+    
+    | Speaker | Description | Native Language |
+    |---------|-------------|----------------|
+    | Vivian | Bright, slightly edgy young female | Chinese |
+    | Serena | Warm, gentle young female | Chinese |
+    | Uncle_Fu | Seasoned male, low and mellow | Chinese |
+    | Dylan | Youthful Beijing male, clear and natural | Chinese (Beijing) |
+    | Eric | Lively Chengdu male, husky brightness | Chinese (Sichuan) |
+    | Ryan | Dynamic male, strong rhythmic drive | English |
+    | Aiden | Sunny American male, clear midrange | English |
+    | Ono_Anna | Playful Japanese female, light and nimble | Japanese |
+    | Sohee | Warm Korean female, rich emotion | Korean |
+    
+    Get the list programmatically:
+    ```python
+    speakers = model.get_supported_speakers()
+    languages = model.get_supported_languages()
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance & Optimization
+
+<AccordionGroup>
+  <Accordion title="How can I speed up inference?">
+    1. **Use FlashAttention-2**
+       ```python
+       attn_implementation="flash_attention_2"
+       ```
+    
+    2. **Use bfloat16 dtype**
+       ```python
+       dtype=torch.bfloat16
+       ```
+    
+    3. **Use smaller model** (0.6B instead of 1.7B)
+    
+    4. **Batch processing**
+       ```python
+       wavs, sr = model.generate_custom_voice(
+           text=["Text 1", "Text 2", "Text 3"],
+           language=["English"] * 3,
+           speaker=["Ryan"] * 3,
+       )
+       ```
+    
+    5. **Use vLLM for production deployments**
+       - See [vLLM-Omni documentation](https://docs.vllm.ai/projects/vllm-omni/en/latest/)
+       - Optimized inference engine
+       - Better throughput and latency
+  </Accordion>
+  
+  <Accordion title="I'm getting CUDA out of memory errors">
+    Try these solutions:
+    
+    1. **Use smaller model**
+       ```python
+       model = Qwen3TTSModel.from_pretrained(
+           "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",  # 0.6B instead of 1.7B
+           ...
+       )
+       ```
+    
+    2. **Use float16 instead of bfloat16**
+       ```python
+       dtype=torch.float16
+       ```
+    
+    3. **Reduce batch size**
+       ```python
+       # Process one at a time instead of batching
+       for text in texts:
+           wavs, sr = model.generate_custom_voice(text=text, ...)
+       ```
+    
+    4. **Reduce max_new_tokens**
+       ```python
+       wavs, sr = model.generate_custom_voice(
+           text=text,
+           max_new_tokens=1024,  # Default is 2048
+           ...
+       )
+       ```
+    
+    5. **Clear CUDA cache**
+       ```python
+       import torch
+       torch.cuda.empty_cache()
+       ```
+  </Accordion>
+  
+  <Accordion title="Can I run Qwen3-TTS on CPU?">
+    Yes, but it will be much slower:
+    
+    ```python
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",
+        device_map="cpu",
+        dtype=torch.float32,  # bfloat16 not supported on CPU
+    )
+    ```
+    
+    For CPU inference:
+    - Use 0.6B model for reasonable performance
+    - Expect 10-50x slower than GPU
+    - Consider using quantized models (coming soon)
+  </Accordion>
+  
+  <Accordion title="How can I deploy Qwen3-TTS in production?">
+    **Recommended options:**
+    
+    1. **DashScope API** (Easiest)
+       - Managed service by Alibaba Cloud
+       - No infrastructure needed
+       - See [API documentation](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime)
+    
+    2. **vLLM-Omni** (Self-hosted, optimized)
+       - Best performance for self-hosted deployments
+       - Batch inference optimization
+       - See [vLLM-Omni quickstart](https://docs.vllm.ai/projects/vllm-omni/en/latest/getting_started/quickstart/)
+    
+    3. **Gradio demo** (Quick prototypes)
+       ```bash
+       qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+         --ip 0.0.0.0 --port 8000
+       ```
+    
+    4. **Custom Flask/FastAPI service**
+       - Wrap the Python API in your own service
+       - Full control over API design
+       - Use gunicorn/uvicorn for production
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Audio quality is poor or has artifacts">
+    Common causes and solutions:
+    
+    1. **Reference audio quality (Base model)**
+       - Use high-quality reference audio (16kHz+, no noise)
+       - Provide accurate transcript
+       - Use 3+ seconds of reference audio
+    
+    2. **Text quality**
+       - Check for typos or special characters
+       - Ensure proper punctuation
+       - Avoid extremely long sentences
+    
+    3. **Model selection**
+       - Try 1.7B model instead of 0.6B
+       - Use 12Hz instead of 25Hz tokenizer
+    
+    4. **Generation parameters**
+       ```python
+       wavs, sr = model.generate_custom_voice(
+           text=text,
+           temperature=0.7,  # Lower temperature = more stable
+           top_p=0.9,
+           repetition_penalty=1.1,
+           ...
+       )
+       ```
+  </Accordion>
+  
+  <Accordion title="Voice cloning doesn't match the reference">
+    Try these solutions:
+    
+    1. **Disable x-vector only mode**
+       ```python
+       wavs, sr = model.generate_voice_clone(
+           text=text,
+           ref_audio=ref_audio,
+           ref_text=ref_text,  # Provide transcript
+           x_vector_only_mode=False,  # Use full ICL mode
+       )
+       ```
+    
+    2. **Improve reference audio**
+       - Use clean audio without background noise
+       - Ensure clear speech without mumbling
+       - Use 3-5 seconds of audio
+       - Include diverse phonemes
+    
+    3. **Match target language to reference**
+       - If reference is English, generate English first
+       - Cross-lingual cloning is harder
+    
+    4. **Use longer reference audio**
+       - 5-10 seconds often works better than 3 seconds
+       - Multiple sentences with varied intonation
+  </Accordion>
+  
+  <Accordion title="The web demo microphone doesn't work (Base model)">
+    This is a browser security issue. Solutions:
+    
+    1. **Use HTTPS** (Required for remote access)
+       ```bash
+       # Generate self-signed certificate
+       openssl req -x509 -newkey rsa:2048 \
+         -keyout key.pem -out cert.pem \
+         -days 365 -nodes -subj "/CN=localhost"
+       
+       # Launch with HTTPS
+       qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+         --ssl-certfile cert.pem \
+         --ssl-keyfile key.pem \
+         --no-ssl-verify
+       ```
+    
+    2. **Access via localhost** (HTTP allowed for localhost)
+       ```bash
+       qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+         --ip 127.0.0.1 --port 8000
+       ```
+       Then access at `http://127.0.0.1:8000`
+    
+    3. **Check browser permissions**
+       - Allow microphone access when prompted
+       - Check browser settings for microphone permissions
+  </Accordion>
+</AccordionGroup>
+
+## API & Integration
+
+<AccordionGroup>
+  <Accordion title="Is there a REST API?">
+    Yes! Use the **DashScope API** for production-ready REST API access:
+    
+    | Model Type | Documentation (CN) | Documentation (EN) |
+    |------------|-------------------|-------------------|
+    | CustomVoice | [Link](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime) | [Link](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-realtime) |
+    | Voice Clone | [Link](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning) | [Link](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-cloning) |
+    | Voice Design | [Link](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-design) | [Link](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-design) |
+    
+    Features:
+    - Streaming support
+    - No infrastructure management
+    - Pay-per-use pricing
+    - Global availability
+  </Accordion>
+  
+  <Accordion title="Can I use Qwen3-TTS with LangChain or other frameworks?">
+    Yes! The Python API is framework-agnostic. Example integration:
+    
+    ```python
+    import torch
+    from qwen_tts import Qwen3TTSModel
+    import soundfile as sf
+    
+    class Qwen3TTSService:
+        def __init__(self, model_name):
+            self.model = Qwen3TTSModel.from_pretrained(
+                model_name,
+                device_map="cuda:0",
+                dtype=torch.bfloat16,
+            )
+        
+        def synthesize(self, text, **kwargs):
+            wavs, sr = self.model.generate_custom_voice(
+                text=text, **kwargs
+            )
+            return wavs[0], sr
+    
+    # Use in your application
+    tts = Qwen3TTSService("Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice")
+    audio, sr = tts.synthesize(
+        "Hello world",
+        language="English",
+        speaker="Ryan"
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Licensing & Commercial Use
+
+<AccordionGroup>
+  <Accordion title="What is the license?">
+    Qwen3-TTS is released under the **Apache 2.0 License**.
+    
+    You are free to:
+    - Use commercially
+    - Modify and distribute
+    - Use privately
+    - Include in proprietary software
+    
+    See the [LICENSE](https://github.com/QwenLM/Qwen3-TTS/blob/main/LICENSE) file for full details.
+  </Accordion>
+  
+  <Accordion title="Can I use Qwen3-TTS for commercial applications?">
+    **Yes!** Qwen3-TTS is free for commercial use under Apache 2.0.
+    
+    However:
+    - You are responsible for the content generated
+    - Do not use for illegal, harmful, or infringing content
+    - Follow local laws regarding AI-generated audio
+    - Consider ethical implications (deepfakes, impersonation, etc.)
+    
+    See the model's disclaimer for full terms.
+  </Accordion>
+</AccordionGroup>
+
+## Still Have Questions?
+
+<CardGroup cols={3}>
+  <Card title="GitHub Issues" icon="github" href="https://github.com/QwenLM/Qwen3-TTS/issues">
+    Report bugs or request features
+  </Card>
+  
+  <Card title="Discord" icon="discord" href="https://discord.gg/CV4E9rpNSD">
+    Chat with the community
+  </Card>
+  
+  <Card title="WeChat Group" icon="weixin" href="https://github.com/QwenLM/Qwen/blob/main/assets/wechat.png">
+    Join Chinese community
+  </Card>
+</CardGroup>

@@ -1,0 +1,274 @@
+---
+title: Fine-tuning Guide
+description: Learn how to fine-tune Qwen3-TTS models for custom single-speaker applications
+---
+
+Qwen3-TTS-12Hz-1.7B/0.6B-Base models support single-speaker fine-tuning to adapt the model to your specific voice and use case. This guide walks you through the complete fine-tuning workflow.
+
+<Note>
+Multi-speaker fine-tuning and other advanced fine-tuning features will be supported in future releases.
+</Note>
+
+## When to Fine-tune
+
+Fine-tuning is recommended when you need:
+
+- **Consistent custom voice**: Train the model to generate a specific voice character consistently
+- **Domain adaptation**: Improve performance on specialized vocabulary or speaking styles
+- **Voice quality**: Enhance the naturalness and consistency for a particular speaker
+- **Single-speaker applications**: Apps or services that use one primary voice throughout
+
+## Prerequisites
+
+Before starting, ensure you have:
+
+1. Installed the qwen-tts package:
+```bash
+pip install qwen-tts
+```
+
+2. Cloned the repository:
+```bash
+git clone https://github.com/QwenLM/Qwen3-TTS.git
+cd Qwen3-TTS/finetuning
+```
+
+## Dataset Preparation
+
+### Input Format
+
+Prepare your training data as a JSONL file (one JSON object per line). Each line must contain three fields:
+
+- **`audio`**: Path to the target training audio (WAV format)
+- **`text`**: Transcript corresponding to the audio
+- **`ref_audio`**: Path to the reference speaker audio (WAV format)
+
+### Example JSONL
+
+```jsonl
+{"audio":"./data/utt0001.wav","text":"其实我真的有发现，我是一个特别善于观察别人情绪的人。","ref_audio":"./data/ref.wav"}
+{"audio":"./data/utt0002.wav","text":"She said she would be here by noon.","ref_audio":"./data/ref.wav"}
+```
+
+### Reference Audio Recommendations
+
+<Tip>
+**Best practice**: Use the same `ref_audio` for all samples in your dataset.
+</Tip>
+
+Keeping `ref_audio` identical across the dataset usually improves:
+- Speaker consistency during generation
+- Training stability
+- Voice quality in the fine-tuned model
+
+The reference audio should:
+- Be 3-10 seconds long
+- Contain clear speech from the target speaker
+- Have minimal background noise
+- Be in WAV format at 24kHz sampling rate
+
+## Training Process
+
+### Step 1: Extract Audio Codes
+
+Convert your raw JSONL into a training-ready format that includes audio codes:
+
+```bash
+python prepare_data.py \
+  --device cuda:0 \
+  --tokenizer_model_path Qwen/Qwen3-TTS-Tokenizer-12Hz \
+  --input_jsonl train_raw.jsonl \
+  --output_jsonl train_with_codes.jsonl
+```
+
+**Parameters:**
+- `--device`: GPU device to use (e.g., `cuda:0`)
+- `--tokenizer_model_path`: Path or model ID of the tokenizer
+- `--input_jsonl`: Path to your raw JSONL file
+- `--output_jsonl`: Output path for processed JSONL with audio codes
+
+This script uses the Qwen3-TTS-Tokenizer to encode audio into discrete codes that the model can train on.
+
+### Step 2: Run Fine-tuning
+
+Launch the supervised fine-tuning (SFT) process:
+
+```bash
+python sft_12hz.py \
+  --init_model_path Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+  --output_model_path output \
+  --train_jsonl train_with_codes.jsonl \
+  --batch_size 32 \
+  --lr 2e-6 \
+  --num_epochs 10 \
+  --speaker_name speaker_test
+```
+
+**Training Parameters:**
+
+| Parameter | Description | Recommended Value |
+|-----------|-------------|-------------------|
+| `--init_model_path` | Base model to fine-tune | `Qwen/Qwen3-TTS-12Hz-1.7B-Base` or `Qwen/Qwen3-TTS-12Hz-0.6B-Base` |
+| `--output_model_path` | Directory to save checkpoints | `output` |
+| `--train_jsonl` | Training data with codes | Path from Step 1 |
+| `--batch_size` | Batch size per GPU | 2-32 (depends on GPU memory) |
+| `--lr` | Learning rate | 2e-6 to 2e-5 |
+| `--num_epochs` | Number of training epochs | 3-10 |
+| `--speaker_name` | Name for the custom speaker | Any string (e.g., `speaker_test`) |
+
+Checkpoints are saved after each epoch:
+```
+output/
+├── checkpoint-epoch-0/
+├── checkpoint-epoch-1/
+├── checkpoint-epoch-2/
+└── ...
+```
+
+### Step 3: Test Your Model
+
+Quickly test the fine-tuned model with inference:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+device = "cuda:0"
+tts = Qwen3TTSModel.from_pretrained(
+    "output/checkpoint-epoch-2",
+    device_map=device,
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+wavs, sr = tts.generate_custom_voice(
+    text="She said she would be here by noon.",
+    speaker="speaker_test",  # Use the same speaker_name from training
+)
+sf.write("output.wav", wavs[0], sr)
+```
+
+## Configuration Options
+
+### Hardware Requirements
+
+- **GPU Memory**: 16GB+ recommended for 1.7B model with batch_size=2
+- **RAM**: 32GB+ recommended
+- **GPU**: NVIDIA GPU with CUDA support, FlashAttention 2 compatible
+
+### Training Configuration
+
+The `sft_12hz.py` script uses the following configuration:
+
+- **Mixed precision**: bfloat16 for memory efficiency
+- **Gradient accumulation**: 4 steps
+- **Optimizer**: AdamW with weight decay 0.01
+- **Gradient clipping**: Max norm 1.0
+- **Loss function**: Combined main codec loss + 0.3 × sub-talker loss
+
+### Data Configuration
+
+In `dataset.py`, the training pipeline:
+
+- Loads audio at 24kHz sampling rate
+- Extracts mel-spectrograms (128 mels, 1024 FFT size)
+- Tokenizes text with Qwen3-TTS processor
+- Creates dual-channel inputs (text + codec channels)
+- Applies speaker embeddings from reference audio
+
+## Best Practices
+
+### Data Collection
+
+1. **Quality over quantity**: 30-100 high-quality samples often work better than 1000+ low-quality samples
+2. **Diverse content**: Include varied sentences covering different phonemes and prosody patterns
+3. **Clean audio**: Use professional recordings or well-processed audio with minimal noise
+4. **Consistent environment**: Record all samples in similar acoustic conditions
+
+### Training Tips
+
+1. **Start with lower learning rate**: 2e-6 is safer; increase to 2e-5 if underfitting
+2. **Monitor loss**: Training loss should steadily decrease; if it plateaus early, try:
+   - Increasing learning rate
+   - Adding more diverse training data
+   - Training for more epochs
+3. **Batch size**: Adjust based on GPU memory:
+   - 24GB GPU: batch_size 32 for 0.6B, 16 for 1.7B
+   - 16GB GPU: batch_size 16 for 0.6B, 2-4 for 1.7B
+4. **Checkpoint selection**: Test multiple epoch checkpoints; later isn't always better
+
+### Evaluation
+
+- **Listen to outputs**: Subjective quality is most important
+- **Test diverse inputs**: Try short/long sentences, different emotions, edge cases
+- **Compare to base model**: Ensure fine-tuning improved quality for your use case
+- **Check consistency**: Generate same sentence multiple times to verify consistency
+
+## One-Click Training Script
+
+For convenience, combine all steps into a single shell script:
+
+```bash
+#!/usr/bin/env bash
+set -e
+
+DEVICE="cuda:0"
+TOKENIZER_MODEL_PATH="Qwen/Qwen3-TTS-Tokenizer-12Hz"
+INIT_MODEL_PATH="Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+
+RAW_JSONL="train_raw.jsonl"
+TRAIN_JSONL="train_with_codes.jsonl"
+OUTPUT_DIR="output"
+
+BATCH_SIZE=2
+LR=2e-5
+EPOCHS=3
+SPEAKER_NAME="speaker_1"
+
+# Step 1: Prepare data
+python prepare_data.py \
+  --device ${DEVICE} \
+  --tokenizer_model_path ${TOKENIZER_MODEL_PATH} \
+  --input_jsonl ${RAW_JSONL} \
+  --output_jsonl ${TRAIN_JSONL}
+
+# Step 2: Fine-tune
+python sft_12hz.py \
+  --init_model_path ${INIT_MODEL_PATH} \
+  --output_model_path ${OUTPUT_DIR} \
+  --train_jsonl ${TRAIN_JSONL} \
+  --batch_size ${BATCH_SIZE} \
+  --lr ${LR} \
+  --num_epochs ${EPOCHS} \
+  --speaker_name ${SPEAKER_NAME}
+```
+
+Save this as `train.sh`, make it executable (`chmod +x train.sh`), and run with `./train.sh`.
+
+## Troubleshooting
+
+### Out of Memory (OOM)
+
+- Reduce `--batch_size`
+- Use the 0.6B model instead of 1.7B
+- Enable gradient checkpointing (modify `sft_12hz.py`)
+
+### Poor Quality Output
+
+- Ensure reference audio is high quality
+- Use the same ref_audio for all training samples
+- Train for more epochs (try 10-20)
+- Check that audio files are 24kHz WAV format
+
+### Training Too Slow
+
+- Increase batch size if GPU memory allows
+- Use multiple GPUs (requires modifying training script)
+- Ensure FlashAttention 2 is installed
+
+## Next Steps
+
+- Learn about [vLLM integration](/advanced/vllm-integration) for optimized inference
+- Explore [performance optimization](/advanced/performance) techniques
+- Try the [DashScope API](/advanced/dashscope-api) for cloud deployment

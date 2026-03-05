@@ -1,0 +1,211 @@
+---
+title: Qwen3TTSModel
+description: Main wrapper class for Qwen3-TTS models
+---
+
+## Class
+
+`Qwen3TTSModel` is a HuggingFace-style wrapper for Qwen3-TTS models that provides:
+
+- `from_pretrained()` initialization via AutoModel/AutoProcessor
+- Generation APIs for CustomVoice, VoiceDesign, and Base models
+- Consistent output format: `(wavs: List[np.ndarray], sample_rate: int)`
+- Language and speaker validation
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:54-878`
+
+## Constructor
+
+```python
+Qwen3TTSModel(
+    model: Qwen3TTSForConditionalGeneration,
+    processor: Qwen3TTSProcessor,
+    generate_defaults: Optional[Dict[str, Any]] = None
+)
+```
+
+The constructor is typically not called directly. Use [`from_pretrained()`](#from_pretrained) instead.
+
+<ParamField path="model" type="Qwen3TTSForConditionalGeneration" required>
+  The underlying HuggingFace TTS model instance.
+</ParamField>
+
+<ParamField path="processor" type="Qwen3TTSProcessor" required>
+  The model's text processor.
+</ParamField>
+
+<ParamField path="generate_defaults" type="Optional[Dict[str, Any]]" default="None">
+  Default generation parameters loaded from `generate_config.json`.
+</ParamField>
+
+## Class Methods
+
+### from_pretrained
+
+```python
+@classmethod
+Qwen3TTSModel.from_pretrained(
+    pretrained_model_name_or_path: str,
+    **kwargs
+) -> Qwen3TTSModel
+```
+
+Load a Qwen3-TTS model and its processor in HuggingFace `from_pretrained` style.
+
+This method:
+1. Loads the config via `AutoConfig` (registers `qwen3_tts` model type)
+2. Loads the model via `AutoModel.from_pretrained(...)`, forwarding `kwargs` unchanged
+3. Loads the processor via `AutoProcessor.from_pretrained(...)`
+4. Loads optional `generate_config.json` from the model directory if present
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:82-121`
+
+#### Parameters
+
+<ParamField path="pretrained_model_name_or_path" type="str" required>
+  HuggingFace repository ID or local directory path containing the model.
+  
+  Examples:
+  - `"Qwen3-TTS-CustomVoice-2B"`
+  - `"./local/model/path"`
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Forwarded as-is into `AutoModel.from_pretrained(...)`.
+  
+  Common examples:
+  - `device_map="cuda:0"` - Load model on specific GPU
+  - `torch_dtype=torch.bfloat16` - Use bfloat16 precision
+  - `attn_implementation="flash_attention_2"` - Use FlashAttention 2
+  - `trust_remote_code=True` - Trust remote code (if required)
+</ParamField>
+
+#### Returns
+
+<ResponseField name="Qwen3TTSModel" type="Qwen3TTSModel">
+  Wrapper instance containing the loaded model, processor, and generation defaults.
+</ResponseField>
+
+#### Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+import torch
+
+# Basic loading
+model = Qwen3TTSModel.from_pretrained("Qwen3-TTS-CustomVoice-2B")
+
+# Load with specific device and dtype
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-CustomVoice-2B",
+    device_map="cuda:0",
+    torch_dtype=torch.bfloat16
+)
+
+# Load from local directory
+model = Qwen3TTSModel.from_pretrained(
+    "./my_local_model",
+    device_map="auto"
+)
+```
+
+## Instance Methods
+
+### get_supported_languages
+
+```python
+get_supported_languages() -> Optional[List[str]]
+```
+
+List supported language names for the current model.
+
+This is a convenience wrapper around `model.get_supported_languages()`. If the underlying model does not expose language constraints (returns `None`), this method also returns `None`.
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:861-877`
+
+#### Returns
+
+<ResponseField name="languages" type="Optional[List[str]]">
+  - A sorted list of supported language names (lowercased), if available
+  - `None` if the model does not provide supported languages
+</ResponseField>
+
+#### Example
+
+```python
+languages = model.get_supported_languages()
+if languages:
+    print(f"Supported languages: {languages}")
+else:
+    print("All languages supported")
+```
+
+### get_supported_speakers
+
+```python
+get_supported_speakers() -> Optional[List[str]]
+```
+
+List supported speaker names for the current model.
+
+This is a convenience wrapper around `model.get_supported_speakers()`. If the underlying model does not expose speaker constraints (returns `None`), this method also returns `None`.
+
+**Note**: This is primarily used with CustomVoice models.
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:842-858`
+
+#### Returns
+
+<ResponseField name="speakers" type="Optional[List[str]]">
+  - A sorted list of supported speaker names (lowercased), if available
+  - `None` if the model does not provide supported speakers
+</ResponseField>
+
+#### Example
+
+```python
+speakers = model.get_supported_speakers()
+if speakers:
+    print(f"Available speakers: {speakers}")
+    # Use one of the speakers
+    wavs, sr = model.generate_custom_voice(
+        text="Hello",
+        speaker=speakers[0],
+        language="English"
+    )
+```
+
+## Generation Methods
+
+The following generation methods are available on `Qwen3TTSModel` instances:
+
+- [`generate_custom_voice()`](/api/model/generation-methods#generate_custom_voice) - Generate speech using predefined speaker IDs
+- [`generate_voice_design()`](/api/model/generation-methods#generate_voice_design) - Generate speech with natural-language instructions
+- [`generate_voice_clone()`](/api/model/generation-methods#generate_voice_clone) - Clone voices from reference audio
+- [`create_voice_clone_prompt()`](/api/model/voice-clone-prompt#create_voice_clone_prompt) - Build reusable voice prompts
+
+See [Generation Methods](/api/model/generation-methods) and [Voice Clone Prompt](/api/model/voice-clone-prompt) for complete documentation.
+
+## Attributes
+
+<ResponseField name="model" type="Qwen3TTSForConditionalGeneration">
+  The underlying HuggingFace conditional generation model.
+</ResponseField>
+
+<ResponseField name="processor" type="Qwen3TTSProcessor">
+  The text processor for tokenization.
+</ResponseField>
+
+<ResponseField name="generate_defaults" type="Dict[str, Any]">
+  Default generation parameters loaded from `generate_config.json`.
+</ResponseField>
+
+<ResponseField name="device" type="torch.device">
+  The device where the model is loaded (e.g., `cuda:0`, `cpu`).
+</ResponseField>
+
+## See Also
+
+- [Generation Methods](/api/model/generation-methods) - Detailed parameter documentation for all generation methods
+- [Voice Clone Prompt](/api/model/voice-clone-prompt) - Voice cloning workflow and prompt management
+- [Quickstart Guide](/quickstart) - Getting started with Qwen3-TTS

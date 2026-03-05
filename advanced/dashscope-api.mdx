@@ -1,0 +1,247 @@
+---
+title: DashScope API
+description: Use Qwen3-TTS via cloud API for production deployments
+---
+
+DashScope provides cloud-hosted Qwen3-TTS APIs for fast, scalable, and production-ready text-to-speech generation. Skip infrastructure management and start generating speech in minutes.
+
+## Overview
+
+The DashScope API offers:
+
+- **Managed infrastructure**: No GPU setup or maintenance required
+- **Low latency**: Optimized cloud deployment for fast generation
+- **High availability**: Production-grade reliability and uptime
+- **Real-time streaming**: Stream audio as it's generated
+- **All model variants**: Access to CustomVoice, VoiceClone, and VoiceDesign models
+
+## API Types
+
+DashScope provides three API endpoints corresponding to the three Qwen3-TTS model types:
+
+### 1. Custom Voice API
+
+Generate speech using predefined speaker voices with optional instruction control.
+
+**Features:**
+- 9 premium speaker voices (Vivian, Serena, Ryan, Aiden, etc.)
+- Multi-language support (Chinese, English, Japanese, Korean, and more)
+- Natural language instruction control (emotion, tone, speaking style)
+- Streaming and non-streaming modes
+
+**Documentation:**
+- 🇨🇳 Mainland China: [https://help.aliyun.com/zh/model-studio/qwen-tts-realtime](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime)
+- 🌍 International: [https://www.alibabacloud.com/help/en/model-studio/qwen-tts-realtime](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-realtime)
+
+### 2. Voice Clone API
+
+Clone any voice from a reference audio sample and generate new speech in that voice.
+
+**Features:**
+- 3-second rapid voice cloning
+- High-fidelity speaker similarity
+- Supports reference audio + transcript
+- Cross-lingual voice cloning
+
+**Documentation:**
+- 🇨🇳 Mainland China: [https://help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning)
+- 🌍 International: [https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-cloning](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-cloning)
+
+### 3. Voice Design API
+
+Create custom voices from natural language descriptions.
+
+**Features:**
+- Design voices with text descriptions (age, gender, tone, emotion)
+- Fine-grained control over voice characteristics
+- Generate unique voice profiles on-demand
+- Support for creative and expressive voice styles
+
+**Documentation:**
+- 🇨🇳 Mainland China: [https://help.aliyun.com/zh/model-studio/qwen-tts-voice-design](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-design)
+- 🌍 International: [https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-design](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-design)
+
+## Quick Start
+
+### 1. Get API Credentials
+
+1. Sign up for DashScope account:
+   - **Mainland China**: Visit [Alibaba Cloud Model Studio](https://help.aliyun.com/zh/model-studio/)
+   - **International**: Visit [Alibaba Cloud Model Studio](https://www.alibabacloud.com/help/en/model-studio/)
+
+2. Create API key in the console
+
+3. Note your API endpoint and key
+
+### 2. Make Your First Request
+
+Refer to the official documentation for complete API reference, authentication, and code examples:
+
+- [Custom Voice API Docs](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime)
+- [Voice Clone API Docs](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning)
+- [Voice Design API Docs](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-design)
+
+## API Comparison
+
+| Feature | Custom Voice | Voice Clone | Voice Design |
+|---------|-------------|-------------|-------------|
+| Predefined speakers | ✅ 9 speakers | ❌ | ❌ |
+| Custom voice from audio | ❌ | ✅ | ❌ |
+| Voice from description | ❌ | ❌ | ✅ |
+| Instruction control | ✅ | ❌ | ✅ |
+| Streaming | ✅ | ✅ | ✅ |
+| Languages | 10 languages | 10 languages | 10 languages |
+| Best for | Production apps with consistent voices | Voice cloning, personalization | Creative voice design |
+
+## Self-Hosted vs Cloud API
+
+| Aspect | Self-Hosted (qwen-tts package) | DashScope API |
+|--------|-------------------------------|---------------|
+| **Setup** | Install package, download models | Sign up, get API key |
+| **Infrastructure** | Requires GPU (16-24GB VRAM) | Managed cloud infrastructure |
+| **Scaling** | Manual scaling, load balancing | Auto-scaling, built-in load balancing |
+| **Cost** | GPU hardware/cloud compute costs | Pay-per-use API pricing |
+| **Latency** | Local: lowest; Cloud: depends on network | Optimized cloud infrastructure |
+| **Maintenance** | Self-maintained, model updates | Fully managed, automatic updates |
+| **Customization** | Full control, fine-tuning support | API parameters only |
+| **Data privacy** | Complete control, data stays local | Data sent to cloud (check privacy policy) |
+
+### When to Use Self-Hosted
+
+- Need complete data privacy/control
+- High-volume processing with predictable load
+- Custom fine-tuning requirements
+- Network-isolated environments
+- Long-term cost optimization for stable workloads
+
+### When to Use DashScope API
+
+- Fast prototyping and development
+- Variable or unpredictable traffic
+- No GPU infrastructure available
+- Need high availability without ops overhead
+- Small to medium scale deployments
+- Want automatic model updates and optimizations
+
+## Pricing
+
+For pricing information, contact Alibaba Cloud or refer to the official documentation:
+
+- [DashScope Pricing (China)](https://help.aliyun.com/zh/model-studio/)
+- [Alibaba Cloud Pricing (International)](https://www.alibabacloud.com/help/en/model-studio/)
+
+## Rate Limits
+
+API rate limits vary by account tier. Check the official documentation for current limits:
+
+- [API Rate Limits Documentation](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime)
+
+## Regional Availability
+
+DashScope APIs are available in multiple regions:
+
+- **China**: Beijing, Shanghai, Hangzhou, Shenzhen
+- **International**: Singapore, US, Europe
+
+Select the region closest to your users for optimal latency.
+
+## Best Practices
+
+### Error Handling
+
+- Implement retry logic with exponential backoff
+- Handle rate limit errors gracefully
+- Log API errors for debugging
+- Validate inputs before API calls
+
+### Performance Optimization
+
+- Use streaming mode for real-time applications
+- Batch requests when possible
+- Cache frequently generated audio
+- Choose nearest regional endpoint
+
+### Cost Optimization
+
+- Cache common phrases and responses
+- Use appropriate audio quality settings
+- Monitor usage and set alerts
+- Batch process when real-time isn't required
+
+### Security
+
+- Never expose API keys in client-side code
+- Rotate API keys regularly
+- Use environment variables for credentials
+- Implement rate limiting on your application layer
+- Validate and sanitize user inputs
+
+## Migration Guide
+
+### From Self-Hosted to API
+
+Migrating from the `qwen-tts` package to DashScope API:
+
+**Before (Self-Hosted):**
+```python
+from qwen_tts import Qwen3TTSModel
+import torch
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+
+wavs, sr = model.generate_custom_voice(
+    text="Hello world",
+    language="English",
+    speaker="Ryan",
+)
+```
+
+**After (DashScope API):**
+
+Refer to the official API documentation for equivalent code:
+- [Custom Voice API Examples](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime)
+
+### From API to Self-Hosted
+
+Reverse migration for data privacy or cost reasons:
+
+1. Set up GPU infrastructure
+2. Install qwen-tts package
+3. Download model weights
+4. Adapt API calls to library calls
+5. Implement caching and optimization
+
+## Support
+
+For DashScope API support:
+
+- **Documentation**: [DashScope API Docs](https://help.aliyun.com/zh/model-studio/)
+- **Technical Support**: Alibaba Cloud support portal
+- **Community**: Qwen GitHub Issues and Discord
+
+For self-hosted model support:
+
+- **GitHub**: [Qwen3-TTS Repository](https://github.com/QwenLM/Qwen3-TTS)
+- **Discord**: [Qwen Discord Server](https://discord.gg/CV4E9rpNSD)
+
+## Official Documentation Links
+
+| API Type | Documentation (China) | Documentation (International) |
+|----------|----------------------|-------------------------------|
+| Custom Voice | [help.aliyun.com/zh/model-studio/qwen-tts-realtime](https://help.aliyun.com/zh/model-studio/qwen-tts-realtime) | [alibabacloud.com/help/en/model-studio/qwen-tts-realtime](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-realtime) |
+| Voice Clone | [help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning) | [alibabacloud.com/help/en/model-studio/qwen-tts-voice-cloning](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-cloning) |
+| Voice Design | [help.aliyun.com/zh/model-studio/qwen-tts-voice-design](https://help.aliyun.com/zh/model-studio/qwen-tts-voice-design) | [alibabacloud.com/help/en/model-studio/qwen-tts-voice-design](https://www.alibabacloud.com/help/en/model-studio/qwen-tts-voice-design) |
+
+<Note>
+For complete API reference, authentication details, request/response formats, and code examples, please refer to the official DashScope documentation linked above.
+</Note>
+
+## Next Steps
+
+- Learn about [performance optimization](/advanced/performance) for self-hosted deployments
+- Deploy with [vLLM integration](/advanced/vllm-integration) for optimized inference
+- [Fine-tune](/advanced/fine-tuning) models for custom voices

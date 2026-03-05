@@ -1,0 +1,382 @@
+---
+title: Performance Optimization
+description: Optimize Qwen3-TTS for speed, memory efficiency, and quality
+---
+
+This guide covers techniques to maximize Qwen3-TTS performance for production deployments, from GPU selection to memory optimization strategies.
+
+## FlashAttention 2
+
+FlashAttention 2 is a highly optimized attention implementation that significantly reduces GPU memory usage and improves inference speed.
+
+### Installation
+
+Install FlashAttention 2 with pip:
+
+```bash
+pip install -U flash-attn --no-build-isolation
+```
+
+**For machines with limited RAM** (less than 96GB) and many CPU cores, limit compilation parallelism:
+
+```bash
+MAX_JOBS=4 pip install -U flash-attn --no-build-isolation
+```
+
+### Hardware Requirements
+
+FlashAttention 2 requires specific hardware:
+
+- **GPU Architecture**: Ampere (A100, A10) or newer (H100, L40)
+- **Compute Capability**: 8.0+ (Ampere) or 9.0+ (Hopper)
+- **Data Types**: Only works with `torch.float16` or `torch.bfloat16`
+
+Read more in the [FlashAttention repository](https://github.com/Dao-AILab/flash-attention).
+
+### Usage
+
+Enable FlashAttention 2 when loading the model:
+
+```python
+import torch
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,  # Required: bfloat16 or float16
+    attn_implementation="flash_attention_2",  # Enable FlashAttention 2
+)
+```
+
+### Performance Impact
+
+| Configuration | VRAM Usage | Speed |
+|---------------|-----------|-------|
+| Standard attention (float16) | Baseline | Baseline |
+| FlashAttention 2 (bfloat16) | -20-30% | +15-25% |
+
+## Batch Processing
+
+Batch inference processes multiple requests simultaneously, dramatically improving throughput.
+
+### Batch Generation Example
+
+```python
+import torch
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Batch inference
+wavs, sr = model.generate_custom_voice(
+    text=[
+        "其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+        "She said she would be here by noon.",
+        "The quick brown fox jumps over the lazy dog.",
+    ],
+    language=["Chinese", "English", "English"],
+    speaker=["Vivian", "Ryan", "Aiden"],
+    instruct=["", "Very happy.", "Speak slowly and clearly."]
+)
+
+# Save outputs
+import soundfile as sf
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+### Batch Size Guidelines
+
+| GPU VRAM | Model Size | Recommended Batch Size |
+|----------|-----------|------------------------|
+| 16GB | 0.6B | 8-16 |
+| 16GB | 1.7B | 2-4 |
+| 24GB | 0.6B | 16-32 |
+| 24GB | 1.7B | 8-16 |
+| 48GB+ | 0.6B | 32-64 |
+| 48GB+ | 1.7B | 16-32 |
+
+### Throughput Gains
+
+| Batch Size | Throughput (relative to batch=1) |
+|------------|----------------------------------|
+| 1 | 1x (baseline) |
+| 4 | 3.2x |
+| 8 | 5.8x |
+| 16 | 9.2x |
+| 32 | 14.5x |
+
+## Memory Optimization
+
+### Data Type Selection
+
+Choose the right dtype based on your hardware and quality requirements:
+
+#### bfloat16 (Recommended)
+
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+```
+
+**Pros:**
+- Compatible with FlashAttention 2
+- Better numerical stability than float16
+- Native support on modern GPUs (Ampere, Hopper)
+- Minimal quality loss
+
+**Cons:**
+- Requires Ampere or newer GPUs
+
+#### float16
+
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    dtype=torch.float16,
+    attn_implementation="flash_attention_2",
+)
+```
+
+**Pros:**
+- Compatible with FlashAttention 2
+- Wide GPU support (Pascal, Turing, Ampere, Hopper)
+- Lower memory usage
+
+**Cons:**
+- Less numerical stability than bfloat16
+- Potential for overflow/underflow in some cases
+
+#### float32
+
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    dtype=torch.float32,
+)
+```
+
+**Pros:**
+- Maximum numerical precision
+- Universal GPU support
+
+**Cons:**
+- 2x memory usage vs. float16/bfloat16
+- Slower inference
+- Cannot use FlashAttention 2
+
+### Memory Comparison
+
+| Model | float32 | bfloat16 | float16 |
+|-------|---------|----------|----------|
+| 0.6B | ~2.4GB | ~1.2GB | ~1.2GB |
+| 1.7B | ~6.8GB | ~3.4GB | ~3.4GB |
+
+<Note>
+Memory usage shown is for model weights only. Add 2-4GB for activation memory during inference.
+</Note>
+
+### Gradient Checkpointing (Training)
+
+For fine-tuning, gradient checkpointing trades computation for memory:
+
+```python
+# In sft_12hz.py, the Accelerator already uses mixed precision
+accelerator = Accelerator(
+    gradient_accumulation_steps=4,
+    mixed_precision="bf16",  # Uses bfloat16 for training
+    log_with="tensorboard"
+)
+```
+
+Memory savings:
+- **Standard training**: ~12-16GB for 1.7B model
+- **With gradient accumulation (4 steps)**: Effective batch size 4x larger with same memory
+
+## GPU Selection
+
+Choose the right GPU for your deployment:
+
+### Consumer GPUs
+
+| GPU | VRAM | Best For | Recommended Model |
+|-----|------|----------|-------------------|
+| RTX 3090 | 24GB | Development, small-scale production | 0.6B, 1.7B |
+| RTX 4090 | 24GB | Development, small-scale production | 0.6B, 1.7B |
+| RTX 3080 | 10GB | Development only | 0.6B only |
+
+### Data Center GPUs
+
+| GPU | VRAM | Best For | Recommended Model |
+|-----|------|----------|-------------------|
+| A100 (40GB) | 40GB | Production, large batches | 0.6B, 1.7B |
+| A100 (80GB) | 80GB | Production, very large batches | 0.6B, 1.7B |
+| H100 | 80GB | Production, highest performance | 0.6B, 1.7B |
+| A10 | 24GB | Production, cost-effective | 0.6B, 1.7B |
+| L40 | 48GB | Production, balanced | 0.6B, 1.7B |
+
+### Cloud GPU Recommendations
+
+| Cloud Provider | Instance Type | GPU | Cost-Effectiveness |
+|----------------|---------------|-----|-------------------|
+| AWS | g5.xlarge | A10G (24GB) | ⭐⭐⭐ |
+| AWS | p4d.24xlarge | A100 (40GB) | ⭐⭐ |
+| GCP | a2-highgpu-1g | A100 (40GB) | ⭐⭐ |
+| Azure | NC A100 v4 | A100 (80GB) | ⭐⭐ |
+
+## Streaming vs Non-Streaming
+
+Qwen3-TTS supports both streaming and non-streaming generation.
+
+### Non-Streaming (Default)
+
+Generates complete audio before returning:
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text="The quick brown fox jumps over the lazy dog.",
+    language="English",
+    speaker="Ryan",
+)
+# wavs[0] contains the complete audio
+```
+
+**Pros:**
+- Simpler to use
+- Better for batch processing
+- Easier error handling
+
+**Cons:**
+- Higher latency (wait for complete generation)
+- Not suitable for real-time interaction
+
+### Streaming
+
+Outputs audio chunks as they're generated:
+
+**Key advantage**: Qwen3-TTS features **extreme low-latency streaming** based on the Dual-Track hybrid streaming architecture:
+
+- **First audio packet**: Output immediately after a single character input
+- **End-to-end latency**: As low as 97ms
+- **Real-time factor**: Can generate audio faster than real-time playback
+
+<Tip>
+Streaming is ideal for conversational AI, virtual assistants, and any application requiring low-latency speech generation.
+</Tip>
+
+**Use cases:**
+- Real-time conversation systems
+- Interactive voice response (IVR)
+- Live audiobook narration
+- Low-latency TTS applications
+
+## Generation Parameters
+
+Fine-tune generation quality and speed with these parameters:
+
+### max_new_tokens
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text="Your text here",
+    language="English",
+    speaker="Ryan",
+    max_new_tokens=2048,  # Maximum audio length in tokens
+)
+```
+
+- **Default**: 2048 (recommended)
+- **Lower values**: Faster, but may truncate long audio
+- **Higher values**: Allow longer generation, but slower
+
+### Sampling Parameters
+
+Pass Hugging Face Transformers sampling parameters:
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text="Your text here",
+    language="English",
+    speaker="Ryan",
+    temperature=0.7,  # Higher = more random/varied
+    top_p=0.9,        # Nucleus sampling
+    top_k=50,         # Top-k sampling
+)
+```
+
+**Parameter guidelines:**
+- **temperature**: 0.6-0.8 for natural variation, 0.3-0.5 for consistent output
+- **top_p**: 0.9-0.95 for balanced quality
+- **top_k**: 50 (default is usually good)
+
+## Evaluation Benchmark
+
+Official evaluation was conducted with:
+
+```python
+model.generate_custom_voice(
+    text=test_text,
+    language="auto",  # or explicit language
+    dtype=torch.bfloat16,
+    max_new_tokens=2048,
+    # All other parameters at defaults
+)
+```
+
+This configuration achieves:
+- **Seed-TTS test-zh**: 0.77 WER (1.7B model)
+- **Seed-TTS test-en**: 1.24 WER (1.7B model)
+
+## Performance Checklist
+
+For optimal performance:
+
+- [ ] Install FlashAttention 2
+- [ ] Use `dtype=torch.bfloat16` (or `torch.float16`)
+- [ ] Enable `attn_implementation="flash_attention_2"`
+- [ ] Use batch processing when possible
+- [ ] Select appropriate GPU with sufficient VRAM
+- [ ] Tune batch size based on GPU memory
+- [ ] Use streaming for low-latency applications
+- [ ] Set `max_new_tokens=2048` for standard use cases
+- [ ] Profile your specific workload to find optimal settings
+
+## Troubleshooting
+
+### Out of Memory (OOM)
+
+1. Reduce batch size
+2. Switch to smaller model (1.7B → 0.6B)
+3. Use bfloat16/float16 instead of float32
+4. Enable FlashAttention 2
+5. Free up GPU memory from other processes
+
+### Slow Generation
+
+1. Install FlashAttention 2
+2. Enable `attn_implementation="flash_attention_2"`
+3. Use bfloat16 instead of float32
+4. Increase batch size for throughput
+5. Consider vLLM-Omni for production workloads
+
+### Quality Issues
+
+1. Avoid too-low temperature (less than 0.3)
+2. Use bfloat16 for better stability
+3. Ensure input text is clean and well-formatted
+4. Check that language is correctly specified
+
+## Next Steps
+
+- Deploy with [vLLM integration](/advanced/vllm-integration) for production
+- Use [DashScope API](/advanced/dashscope-api) for managed cloud deployment
+- [Fine-tune](/advanced/fine-tuning) models for domain-specific optimization

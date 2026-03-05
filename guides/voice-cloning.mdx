@@ -1,0 +1,406 @@
+---
+title: Voice Cloning
+description: Clone any voice from a 3-second reference audio sample
+---
+
+The **Base** models (`Qwen3-TTS-12Hz-1.7B-Base` and `Qwen3-TTS-12Hz-0.6B-Base`) enable rapid voice cloning from just 3 seconds of reference audio. Clone any voice and generate new speech with the same timbre and characteristics.
+
+## Overview
+
+Voice cloning allows you to:
+- Clone any voice from a short audio sample (3+ seconds recommended)
+- Generate new content in the cloned voice
+- Create reusable voice prompts for consistent generation
+- Choose between full cloning (ICL mode) or speaker embedding only
+
+## Basic Voice Cloning
+
+Clone a voice and generate speech in one call:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+ref_audio = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone.wav"
+ref_text = "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it! And thanks to you."
+
+wavs, sr = model.generate_voice_clone(
+    text="I am solving the equation: x = [-b ± √(b²-4ac)] / 2a? Nobody can — it's a disaster (◍•͈⌔•͈◍), very sad!",
+    language="English",
+    ref_audio=ref_audio,
+    ref_text=ref_text,
+)
+
+sf.write("output.wav", wavs[0], sr)
+```
+
+## Reference Audio Requirements
+
+### Audio Input Formats
+
+The `ref_audio` parameter accepts multiple formats:
+
+```python
+# Local file path
+ref_audio = "/path/to/audio.wav"
+
+# URL
+ref_audio = "https://example.com/audio.wav"
+
+# Base64 encoded string
+ref_audio = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10..."
+
+# NumPy array with sample rate tuple
+import numpy as np
+waveform = np.array([...])  # Your audio data
+ref_audio = (waveform, 24000)  # (audio, sample_rate)
+```
+
+### Quality Guidelines
+
+<CardGroup cols={2}>
+  <Card title="Duration" icon="clock">
+    3+ seconds recommended for best results. Longer samples may improve quality.
+  </Card>
+  
+  <Card title="Clean Audio" icon="waveform">
+    Use clear audio without background noise, music, or multiple speakers.
+  </Card>
+  
+  <Card title="Single Speaker" icon="user">
+    Reference audio should contain only the target speaker's voice.
+  </Card>
+  
+  <Card title="Natural Speech" icon="comment">
+    Normal speaking pace and intonation work best. Avoid shouting or whispering.
+  </Card>
+</CardGroup>
+
+## Reusable Voice Prompts
+
+For better performance when generating multiple times with the same voice, create a reusable prompt:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+ref_audio = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone.wav"
+ref_text = "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it! And thanks to you."
+
+# Step 1: Create the voice clone prompt once
+prompt_items = model.create_voice_clone_prompt(
+    ref_audio=ref_audio,
+    ref_text=ref_text,
+    x_vector_only_mode=False,
+)
+
+# Step 2: Reuse the prompt for multiple generations
+sentences = [
+    "Sentence A: This is the first test.",
+    "Sentence B: Here's another example.",
+    "Sentence C: And one more for good measure.",
+]
+
+for i, text in enumerate(sentences):
+    wavs, sr = model.generate_voice_clone(
+        text=text,
+        language="English",
+        voice_clone_prompt=prompt_items,  # Reuse the same prompt
+    )
+    sf.write(f"output_{i}.wav", wavs[0], sr)
+```
+
+<Note>
+Reusing prompts avoids recomputing audio features, significantly improving performance when generating multiple outputs.
+</Note>
+
+## ICL Mode vs X-Vector Only Mode
+
+The Base model supports two cloning modes:
+
+### ICL Mode (Default, Recommended)
+
+**In-Context Learning (ICL)** uses both the reference audio codes and speaker embedding:
+
+```python
+wavs, sr = model.generate_voice_clone(
+    text="Your new text",
+    language="English",
+    ref_audio=ref_audio,
+    ref_text=ref_text,           # Text is REQUIRED
+    x_vector_only_mode=False,    # ICL mode (default)
+)
+```
+
+**Advantages:**
+- Higher quality cloning
+- Better preservation of voice characteristics
+- More natural prosody
+
+**Requirements:**
+- Must provide `ref_text` (transcript of reference audio)
+
+### X-Vector Only Mode
+
+Uses only the speaker embedding (x-vector) without reference codes:
+
+```python
+wavs, sr = model.generate_voice_clone(
+    text="Your new text",
+    language="English",
+    ref_audio=ref_audio,
+    ref_text=None,                # Text NOT required
+    x_vector_only_mode=True,      # Only use speaker embedding
+)
+```
+
+**Advantages:**
+- No need for reference text
+- Faster processing
+
+**Disadvantages:**
+- Lower cloning quality
+- Less accurate voice characteristics
+
+<Warning>
+ICL mode (x_vector_only_mode=False) is strongly recommended for best quality. Only use x-vector mode when you cannot provide reference text.
+</Warning>
+
+## Batch Voice Cloning
+
+### Same Voice, Multiple Texts
+
+Generate multiple outputs using the same cloned voice:
+
+```python
+# Create prompt once
+prompt_items = model.create_voice_clone_prompt(
+    ref_audio=ref_audio,
+    ref_text=ref_text,
+)
+
+# Generate batch
+wavs, sr = model.generate_voice_clone(
+    text=["First sentence.", "Second sentence."],
+    language=["English", "English"],
+    voice_clone_prompt=prompt_items,
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+### Different Voices, Multiple Texts
+
+Clone multiple voices and generate in batch:
+
+```python
+ref_audios = [
+    "https://example.com/voice1.wav",
+    "https://example.com/voice2.wav",
+]
+ref_texts = [
+    "Reference text for voice one.",
+    "Reference text for voice two.",
+]
+
+# Create prompts for both voices
+prompt_items = model.create_voice_clone_prompt(
+    ref_audio=ref_audios,
+    ref_text=ref_texts,
+)
+
+# Generate with different voices
+wavs, sr = model.generate_voice_clone(
+    text=["Text in voice one.", "Text in voice two."],
+    language=["English", "English"],
+    voice_clone_prompt=prompt_items,
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+## Complete Example
+
+Here's the official example demonstrating all cloning modes:
+
+```python examples/test_model_12hz_base.py
+import os
+import time
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+def main():
+    device = "cuda:0"
+    MODEL_PATH = "Qwen/Qwen3-TTS-12Hz-1.7B-Base/"
+    OUT_DIR = "qwen3_tts_test_voice_clone_output_wav"
+    os.makedirs(OUT_DIR, exist_ok=True)
+
+    tts = Qwen3TTSModel.from_pretrained(
+        MODEL_PATH,
+        device_map=device,
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+
+    # Reference audio and text
+    ref_audio = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone_2.wav"
+    ref_text = "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it! And thanks to you."
+
+    # Target text to synthesize
+    syn_text = "Good one. Okay, fine, I'm just gonna leave this sock monkey here. Goodbye."
+    syn_lang = "Auto"
+
+    gen_kwargs = dict(
+        max_new_tokens=2048,
+        do_sample=True,
+        top_k=50,
+        top_p=1.0,
+        temperature=0.9,
+        repetition_penalty=1.05,
+    )
+
+    # Test both modes
+    for xvec_only in [False, True]:
+        mode = "xvec_only" if xvec_only else "icl"
+        print(f"\n=== Testing {mode} mode ===")
+
+        # Method 1: Direct generation
+        t0 = time.time()
+        wavs, sr = tts.generate_voice_clone(
+            text=syn_text,
+            language=syn_lang,
+            ref_audio=ref_audio,
+            ref_text=ref_text,
+            x_vector_only_mode=xvec_only,
+            **gen_kwargs,
+        )
+        t1 = time.time()
+        print(f"Direct: {t1 - t0:.3f}s")
+        sf.write(f"{OUT_DIR}/direct_{mode}.wav", wavs[0], sr)
+
+        # Method 2: With reusable prompt
+        prompt_items = tts.create_voice_clone_prompt(
+            ref_audio=ref_audio,
+            ref_text=ref_text,
+            x_vector_only_mode=xvec_only,
+        )
+
+        t0 = time.time()
+        wavs, sr = tts.generate_voice_clone(
+            text=syn_text,
+            language=syn_lang,
+            voice_clone_prompt=prompt_items,
+            **gen_kwargs,
+        )
+        t1 = time.time()
+        print(f"Reusable prompt: {t1 - t0:.3f}s")
+        sf.write(f"{OUT_DIR}/prompt_{mode}.wav", wavs[0], sr)
+
+if __name__ == "__main__":
+    main()
+```
+
+## Generation Parameters
+
+Customize the generation:
+
+```python
+wavs, sr = model.generate_voice_clone(
+    text="Your text",
+    language="English",
+    ref_audio=ref_audio,
+    ref_text=ref_text,
+    # Generation parameters
+    max_new_tokens=2048,
+    temperature=0.9,
+    top_k=50,
+    top_p=1.0,
+    repetition_penalty=1.05,
+    non_streaming_mode=False,  # Simulate streaming
+)
+```
+
+## Combining Voice Design and Cloning
+
+Create a custom voice with VoiceDesign, then clone it for consistent character voices:
+
+```python
+# Step 1: Design voice
+design_model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+
+ref_text = "Hello, I'm your new virtual assistant."
+ref_wavs, sr = design_model.generate_voice_design(
+    text=ref_text,
+    language="English",
+    instruct="Female, 30s, professional and friendly tone, clear articulation"
+)
+
+# Step 2: Clone the designed voice
+clone_model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+
+voice_prompt = clone_model.create_voice_clone_prompt(
+    ref_audio=(ref_wavs[0], sr),
+    ref_text=ref_text,
+)
+
+# Step 3: Use for all future generations
+wavs, sr = clone_model.generate_voice_clone(
+    text="How can I help you today?",
+    language="English",
+    voice_clone_prompt=voice_prompt,
+)
+```
+
+See the [Voice Design](/guides/voice-design) guide for more details on this workflow.
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Poor cloning quality">
+    - Use ICL mode instead of x-vector only mode
+    - Ensure reference audio is clean and clear
+    - Use longer reference audio (5-10 seconds)
+    - Verify reference text exactly matches the audio
+  </Accordion>
+
+  <Accordion title="Reference text errors">
+    Make sure `ref_text` is provided when `x_vector_only_mode=False`. The text should accurately transcribe the reference audio.
+  </Accordion>
+
+  <Accordion title="Memory issues">
+    For batch processing, reduce batch size or use the 0.6B model instead of 1.7B.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Learn about [Voice Design](/guides/voice-design) to create custom voices
+- See [Batch Processing](/guides/batch-processing) for efficient multi-voice generation
+- Explore [Streaming](/guides/streaming) for real-time applications

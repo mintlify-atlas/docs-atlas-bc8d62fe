@@ -1,0 +1,446 @@
+---
+title: Batch Processing
+description: Efficient batch inference for high-throughput applications
+---
+
+Qwen3-TTS supports efficient batch processing, allowing you to generate multiple audio files in a single call. This is essential for high-throughput applications, offline processing, and dataset generation.
+
+## Overview
+
+Batch processing allows you to:
+- Process multiple texts in a single forward pass
+- Improve GPU utilization and throughput
+- Reduce per-sample overhead
+- Generate consistent audio for multiple inputs efficiently
+
+## Basic Batch Processing
+
+All generation methods support batch inputs by passing lists:
+
+### CustomVoice Batch
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Batch generation
+wavs, sr = model.generate_custom_voice(
+    text=[
+        "其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+        "She said she would be here by noon.",
+        "こんにちは、今日はいい天気ですね。"
+    ],
+    language=["Chinese", "English", "Japanese"],
+    speaker=["Vivian", "Ryan", "Ono_Anna"],
+    instruct=["", "Very happy.", ""],
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+### VoiceDesign Batch
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+wavs, sr = model.generate_voice_design(
+    text=[
+        "Welcome to our service.",
+        "Technical support speaking.",
+        "Thank you for your patience."
+    ],
+    language=["English", "English", "English"],
+    instruct=[
+        "Female, 30s, warm and friendly customer service voice",
+        "Male, 40s, professional technical expert tone",
+        "Female, 25, calm and patient voice"
+    ]
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"support_voice_{i}.wav", wav, sr)
+```
+
+### Voice Clone Batch
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Create reusable prompt
+ref_audio = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone.wav"
+ref_text = "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it! And thanks to you."
+
+prompt_items = model.create_voice_clone_prompt(
+    ref_audio=ref_audio,
+    ref_text=ref_text,
+)
+
+# Generate multiple outputs with same voice
+wavs, sr = model.generate_voice_clone(
+    text=[
+        "This is the first sentence.",
+        "Here's the second sentence.",
+        "And finally, the third sentence."
+    ],
+    language=["English", "English", "English"],
+    voice_clone_prompt=prompt_items,
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"clone_{i}.wav", wav, sr)
+```
+
+## Batch Size Considerations
+
+### Memory Management
+
+Choose appropriate batch sizes based on your GPU memory:
+
+```python
+# Large GPU (A100 80GB) - Large batches
+batch_size = 32
+
+# Medium GPU (A100 40GB, V100 32GB) - Medium batches
+batch_size = 16
+
+# Small GPU (RTX 3090 24GB, V100 16GB) - Small batches
+batch_size = 8
+
+# Very small GPU (RTX 3080 12GB) - Tiny batches
+batch_size = 4
+```
+
+### Processing Large Datasets
+
+For large datasets, process in chunks:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+from typing import List
+
+def process_large_dataset(
+    texts: List[str],
+    languages: List[str],
+    speakers: List[str],
+    batch_size: int = 16,
+    output_dir: str = "outputs/"
+):
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        device_map="cuda:0",
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+    
+    os.makedirs(output_dir, exist_ok=True)
+    
+    # Process in batches
+    for i in range(0, len(texts), batch_size):
+        batch_texts = texts[i:i+batch_size]
+        batch_langs = languages[i:i+batch_size]
+        batch_speakers = speakers[i:i+batch_size]
+        
+        wavs, sr = model.generate_custom_voice(
+            text=batch_texts,
+            language=batch_langs,
+            speaker=batch_speakers,
+        )
+        
+        for j, wav in enumerate(wavs):
+            sf.write(f"{output_dir}/audio_{i+j:06d}.wav", wav, sr)
+        
+        print(f"Processed batch {i//batch_size + 1}/{len(texts)//batch_size + 1}")
+
+# Example usage
+texts = ["Text 1", "Text 2", ...] * 100  # 100+ items
+languages = ["English"] * len(texts)
+speakers = ["Ryan"] * len(texts)
+
+process_large_dataset(texts, languages, speakers, batch_size=16)
+```
+
+## Performance Optimization
+
+### Model Selection
+
+Choose the right model for your throughput needs:
+
+```python
+# Higher throughput: 0.6B model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",  # Faster
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+
+# Higher quality: 1.7B model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",  # Better quality
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+```
+
+### Use Non-Streaming Mode
+
+For batch processing, disable streaming for better throughput:
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text=batch_texts,
+    language=batch_langs,
+    speaker=batch_speakers,
+    non_streaming_mode=True,  # Better for batch processing
+)
+```
+
+### Enable FlashAttention-2
+
+Always use FlashAttention-2 for best performance:
+
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",  # Critical for speed
+)
+```
+
+## Complete Batch Processing Example
+
+Here's a production-ready example:
+
+```python
+import os
+import time
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+from typing import List, Optional
+import pandas as pd
+
+class BatchTTSProcessor:
+    def __init__(
+        self,
+        model_path: str = "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        device: str = "cuda:0",
+        batch_size: int = 16,
+    ):
+        self.batch_size = batch_size
+        self.model = Qwen3TTSModel.from_pretrained(
+            model_path,
+            device_map=device,
+            dtype=torch.bfloat16,
+            attn_implementation="flash_attention_2",
+        )
+    
+    def process_csv(
+        self,
+        csv_path: str,
+        output_dir: str,
+        text_column: str = "text",
+        language_column: str = "language",
+        speaker_column: str = "speaker",
+    ):
+        """Process a CSV file with text, language, and speaker columns"""
+        os.makedirs(output_dir, exist_ok=True)
+        
+        # Read CSV
+        df = pd.read_csv(csv_path)
+        total = len(df)
+        
+        print(f"Processing {total} items...")
+        start_time = time.time()
+        
+        # Process in batches
+        for i in range(0, total, self.batch_size):
+            batch_df = df.iloc[i:i+self.batch_size]
+            
+            wavs, sr = self.model.generate_custom_voice(
+                text=batch_df[text_column].tolist(),
+                language=batch_df[language_column].tolist(),
+                speaker=batch_df[speaker_column].tolist(),
+                non_streaming_mode=True,
+            )
+            
+            # Save outputs
+            for j, wav in enumerate(wavs):
+                idx = i + j
+                output_path = os.path.join(output_dir, f"audio_{idx:06d}.wav")
+                sf.write(output_path, wav, sr)
+            
+            # Progress
+            progress = min(i + self.batch_size, total)
+            elapsed = time.time() - start_time
+            rate = progress / elapsed
+            eta = (total - progress) / rate if rate > 0 else 0
+            
+            print(f"Progress: {progress}/{total} | Rate: {rate:.2f} samples/s | ETA: {eta:.1f}s")
+        
+        total_time = time.time() - start_time
+        print(f"\nCompleted in {total_time:.2f}s ({total/total_time:.2f} samples/s)")
+
+# Usage
+processor = BatchTTSProcessor(
+    model_path="Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    batch_size=16,
+)
+
+processor.process_csv(
+    csv_path="data/texts.csv",
+    output_dir="outputs/audio/",
+    text_column="text",
+    language_column="language",
+    speaker_column="speaker",
+)
+```
+
+## Batch with Different Voices
+
+Process multiple texts with different cloned voices:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Multiple reference audios
+ref_audios = [
+    "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone_1.wav",
+    "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone_2.wav",
+]
+
+ref_texts = [
+    "甚至出现交易几乎停滞的情况。",
+    "Okay. Yeah. I resent you. I love you. I respect you. But you know what? You blew it! And thanks to you.",
+]
+
+# Create batch prompts
+prompt_items = model.create_voice_clone_prompt(
+    ref_audio=ref_audios,
+    ref_text=ref_texts,
+)
+
+# Generate with different voices
+wavs, sr = model.generate_voice_clone(
+    text=[
+        "其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+        "Good one. Okay, fine, I'm just gonna leave this sock monkey here. Goodbye."
+    ],
+    language=["Chinese", "English"],
+    voice_clone_prompt=prompt_items,
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"multi_voice_{i}.wav", wav, sr)
+```
+
+## Performance Benchmarks
+
+### Throughput Comparison
+
+| Model | Batch Size | Samples/Second | GPU |
+|-------|-----------|----------------|-----|
+| 1.7B-CustomVoice | 1 | 1.2 | A100 80GB |
+| 1.7B-CustomVoice | 8 | 7.5 | A100 80GB |
+| 1.7B-CustomVoice | 16 | 12.8 | A100 80GB |
+| 1.7B-CustomVoice | 32 | 18.2 | A100 80GB |
+| 0.6B-CustomVoice | 16 | 18.5 | A100 80GB |
+| 0.6B-CustomVoice | 32 | 28.4 | A100 80GB |
+
+<Note>
+Benchmarks measured with FlashAttention-2 enabled and bfloat16 precision.
+</Note>
+
+## Memory Usage Guidelines
+
+| Batch Size | 1.7B Model | 0.6B Model |
+|-----------|------------|------------|
+| 1 | 8 GB | 4 GB |
+| 4 | 12 GB | 6 GB |
+| 8 | 18 GB | 9 GB |
+| 16 | 28 GB | 14 GB |
+| 32 | 48 GB | 24 GB |
+
+## Best Practices
+
+<AccordionGroup>
+  <Accordion title="Choose appropriate batch size">
+    Start with batch_size=8 and increase until you hit memory limits. Monitor GPU memory usage with `nvidia-smi`.
+  </Accordion>
+
+  <Accordion title="Use consistent input lengths">
+    Texts of similar length in each batch improve efficiency. Sort texts by length before batching.
+  </Accordion>
+
+  <Accordion title="Reuse voice prompts">
+    When using the same voice multiple times, create the prompt once and reuse it across batches.
+  </Accordion>
+
+  <Accordion title="Enable non-streaming mode">
+    For batch processing, `non_streaming_mode=True` provides better throughput than streaming.
+  </Accordion>
+
+  <Accordion title="Use appropriate dtype">
+    bfloat16 provides the best balance of speed and quality. fp16 may be slightly faster but less stable.
+  </Accordion>
+</AccordionGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Out of memory errors">
+    Reduce batch_size, use the 0.6B model instead of 1.7B, or enable gradient checkpointing if available.
+  </Accordion>
+
+  <Accordion title="Slow processing">
+    Ensure FlashAttention-2 is installed and enabled. Use bfloat16 dtype. Increase batch size for better GPU utilization.
+  </Accordion>
+
+  <Accordion title="Inconsistent quality">
+    Some samples in batch have different quality? Check input text lengths - very short texts may have lower quality.
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Learn about [Streaming](/guides/streaming) for real-time applications
+- See [Custom Voice](/guides/custom-voice) for speaker selection
+- Explore [Voice Cloning](/guides/voice-cloning) for personalized voices

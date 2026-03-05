@@ -1,0 +1,235 @@
+---
+title: Qwen3TTSTokenizer
+description: Main tokenizer class for encoding and decoding audio
+---
+
+## Class Definition
+
+```python
+class Qwen3TTSTokenizer:
+    def __init__(self):
+        self.model = None
+        self.feature_extractor = None
+        self.config = None
+        self.device = None
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:44-61`
+</Note>
+
+<Warning>
+Do not instantiate directly. Use `from_pretrained()` instead.
+</Warning>
+
+## Methods
+
+### from_pretrained()
+
+Load a pretrained tokenizer model with HuggingFace-style initialization.
+
+```python
+@classmethod
+def from_pretrained(
+    cls,
+    pretrained_model_name_or_path: str,
+    **kwargs
+) -> "Qwen3TTSTokenizer"
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:63-99`
+</Note>
+
+#### Parameters
+
+<ParamField path="pretrained_model_name_or_path" type="str" required>
+  HuggingFace model repository ID or local directory path.
+  
+  **Examples:**
+  - `"Qwen/Qwen3-TTS-Tokenizer-25Hz"`
+  - `"Qwen/Qwen3-TTS-Tokenizer-12Hz"`
+  - `"/path/to/local/model"`
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Additional keyword arguments forwarded to `AutoModel.from_pretrained()`.
+  
+  **Common options:**
+  - `device_map`: Device placement (e.g., `"cuda:0"`, `"cpu"`, `"auto"`)
+  - `torch_dtype`: Model precision (e.g., `torch.bfloat16`, `torch.float16`)
+  - `attn_implementation`: Attention implementation (e.g., `"eager"`, `"flash_attention_2"`)
+</ParamField>
+
+#### Returns
+
+<ResponseField name="tokenizer" type="Qwen3TTSTokenizer">
+  Initialized tokenizer instance with loaded model, feature extractor, and config.
+</ResponseField>
+
+#### Example
+
+```python
+from qwen_tts import Qwen3TTSTokenizer
+import torch
+
+# Basic loading
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz"
+)
+
+# With device and dtype
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+    device_map="cuda:0",
+    torch_dtype=torch.bfloat16
+)
+
+# Load 25Hz tokenizer
+tokenizer_25hz = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-25Hz",
+    device_map="cuda:0"
+)
+```
+
+### load_audio()
+
+Load audio from a file path or base64 string and resample to target sample rate.
+
+```python
+def load_audio(
+    self,
+    x: str,
+    target_sr: int,
+) -> np.ndarray
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:122-158`
+</Note>
+
+#### Parameters
+
+<ParamField path="x" type="str" required>
+  Audio source:
+  - File path to WAV file
+  - HTTP/HTTPS URL to audio file
+  - Base64 encoded audio string (raw or data URL format)
+</ParamField>
+
+<ParamField path="target_sr" type="int" required>
+  Target sampling rate in Hz for resampling.
+</ParamField>
+
+#### Returns
+
+<ResponseField name="waveform" type="np.ndarray">
+  1-D float32 numpy array containing the resampled audio waveform at `target_sr`.
+</ResponseField>
+
+#### Example
+
+```python
+import soundfile as sf
+
+# Load from file path
+audio = tokenizer.load_audio("audio.wav", target_sr=16000)
+
+# Load from URL
+audio_url = tokenizer.load_audio(
+    "https://example.com/audio.wav",
+    target_sr=16000
+)
+
+# Load from base64
+base64_str = "data:audio/wav;base64,UklGRiQAAABXQVZFZm10..."
+audio_b64 = tokenizer.load_audio(base64_str, target_sr=16000)
+
+# Save loaded audio
+sf.write("output.wav", audio, 16000)
+```
+
+## Utility Methods
+
+### get_model_type()
+
+Get the underlying tokenizer model type.
+
+```python
+def get_model_type(self) -> str
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:367-375`
+</Note>
+
+**Returns:** `"qwen3_tts_tokenizer_25hz"` or `"qwen3_tts_tokenizer_12hz"`
+
+### get_input_sample_rate()
+
+Get the expected input sample rate for encoding.
+
+```python
+def get_input_sample_rate(self) -> int
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:377-384`
+</Note>
+
+**Returns:** Input sample rate in Hz
+
+### get_output_sample_rate()
+
+Get the output sample rate for decoded waveforms.
+
+```python
+def get_output_sample_rate(self) -> int
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:386-393`
+</Note>
+
+**Returns:** Output sample rate in Hz
+
+### get_encode_downsample_rate()
+
+Get the encoder downsample rate (waveform samples per code step).
+
+```python
+def get_encode_downsample_rate(self) -> int
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:395-402`
+</Note>
+
+**Returns:** Encode downsample rate
+
+### get_decode_upsample_rate()
+
+Get the decoder upsample rate (waveform samples per code step).
+
+```python
+def get_decode_upsample_rate(self) -> int
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:404-411`
+</Note>
+
+**Returns:** Decode upsample rate
+
+## AudioInput Type
+
+The tokenizer accepts the following input types (defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:36-41`):
+
+```python
+AudioInput = Union[
+    str,              # WAV path, URL, or base64 string
+    np.ndarray,       # 1-D float array
+    List[str],        # List of paths/URLs/base64 strings
+    List[np.ndarray], # List of 1-D float arrays
+]
+```

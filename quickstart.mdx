@@ -1,80 +1,298 @@
 ---
 title: "Quickstart"
-description: "Start building awesome documentation in minutes"
+description: "Get started with Qwen3-TTS in minutes with practical examples"
 ---
 
-## Get started in three steps
+This guide will walk you through generating your first speech with Qwen3-TTS using all three model types: CustomVoice, VoiceDesign, and Base (voice cloning).
 
-Get your documentation site running locally and make your first customization.
+## Prerequisites
 
-### Step 1: Set up your local environment
+Before you begin, make sure you have:
 
-<AccordionGroup>
-  <Accordion icon="copy" title="Clone your docs locally">
-    During the onboarding process, you created a GitHub repository with your docs content if you didn't already have one. You can find a link to this repository in your [dashboard](https://dashboard.mintlify.com).
+- Python 3.9 or higher (Python 3.12 recommended)
+- A CUDA-compatible GPU (optional but recommended)
+- Installed the `qwen-tts` package (see [Installation](/installation))
+
+## CustomVoice: Generate with Preset Speakers
+
+The CustomVoice models provide 9 premium preset voices across multiple languages.
+
+<Steps>
+  <Step title="Import and load the model">
+    ```python
+    import torch
+    import soundfile as sf
+    from qwen_tts import Qwen3TTSModel
     
-    To clone the repository locally so that you can make and preview changes to your docs, follow the [Cloning a repository](https://docs.github.com/en/repositories/creating-and-managing-repositories/cloning-a-repository) guide in the GitHub docs.
-  </Accordion>
-  <Accordion icon="rectangle-terminal" title="Start the preview server">
-    1. Install the Mintlify CLI: `npm i -g mint`
-    2. Navigate to your docs directory and run: `mint dev`
-    3. Open `http://localhost:3000` to see your docs live!
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        device_map="cuda:0",
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+    ```
+  </Step>
+  
+  <Step title="Generate speech with a preset speaker">
+    ```python
+    wavs, sr = model.generate_custom_voice(
+        text="Hello, welcome to Qwen3-TTS!",
+        language="English",
+        speaker="Ryan",
+    )
     
-    <Tip>Your preview updates automatically as you edit files.</Tip>
-  </Accordion>
-</AccordionGroup>
-
-### Step 2: Deploy your changes
-
-<AccordionGroup>
-  <Accordion icon="github" title="Install our GitHub app">
-    Install the Mintlify GitHub app from your [dashboard](https://dashboard.mintlify.com/settings/organization/github-app).
+    sf.write("output_custom_voice.wav", wavs[0], sr)
+    ```
     
-    Our GitHub app automatically deploys your changes to your docs site, so you don't need to manage deployments yourself.
-</Accordion>
-<Accordion icon="palette" title="Update your site name and colors">
-    For a first change, let's update the name and colors of your docs site.
+    <Note>
+      Available speakers: Vivian, Serena, Uncle_Fu, Dylan, Eric (Chinese); Ryan, Aiden (English); Ono_Anna (Japanese); Sohee (Korean). See the [Custom Voice guide](/guides/custom-voice) for details.
+    </Note>
+  </Step>
+  
+  <Step title="Add instruction control (1.7B model only)">
+    ```python
+    wavs, sr = model.generate_custom_voice(
+        text="I'm so excited to announce this!",
+        language="English",
+        speaker="Ryan",
+        instruct="Very happy and enthusiastic.",
+    )
+    
+    sf.write("output_with_instruction.wav", wavs[0], sr)
+    ```
+  </Step>
+</Steps>
 
-    1. Open `docs.json` in your editor.
-    2. Change the `"name"` field to your project name.
-    3. Update the `"colors"` to match your brand.
-    4. Save and see your changes instantly at `http://localhost:3000`.
+## VoiceDesign: Create Custom Voices
 
-    <Tip>Try changing the primary color to see an immediate difference!</Tip>
-  </Accordion>
-</AccordionGroup>
+The VoiceDesign model lets you create voices from natural language descriptions.
 
-### Step 3: Go live
+<Steps>
+  <Step title="Load the VoiceDesign model">
+    ```python
+    import torch
+    import soundfile as sf
+    from qwen_tts import Qwen3TTSModel
+    
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+        device_map="cuda:0",
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+    ```
+  </Step>
+  
+  <Step title="Generate with a voice description">
+    ```python
+    wavs, sr = model.generate_voice_design(
+        text="Welcome! I'm here to help you get started.",
+        language="English",
+        instruct="Male, 30s, professional and friendly tone, clear articulation",
+    )
+    
+    sf.write("output_voice_design.wav", wavs[0], sr)
+    ```
+    
+    <Tip>
+      Be specific in your instructions. Include age, gender, tone, emotion, accent, and speaking style for best results.
+    </Tip>
+  </Step>
+</Steps>
 
-<Accordion icon="rocket" title="Publish your docs">
-  1. Commit and push your changes.
-  2. Your docs will update and be live in moments!
-</Accordion>
+## Base: Clone Any Voice
 
-## Next steps
+The Base models can clone a voice from just 3 seconds of reference audio.
 
-Now that you have your docs running, explore these key features:
+<Steps>
+  <Step title="Load the Base model">
+    ```python
+    import torch
+    import soundfile as sf
+    from qwen_tts import Qwen3TTSModel
+    
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+        device_map="cuda:0",
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+    ```
+  </Step>
+  
+  <Step title="Prepare reference audio">
+    You need a reference audio file (3+ seconds) and its transcript.
+    
+    ```python
+    ref_audio = "path/to/reference.wav"
+    ref_text = "This is the text spoken in the reference audio."
+    ```
+    
+    <Note>
+      The reference audio can be a local file path, URL, base64 string, or numpy array with sample rate.
+    </Note>
+  </Step>
+  
+  <Step title="Clone the voice">
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="Now I can speak any text in this voice!",
+        language="English",
+        ref_audio=ref_audio,
+        ref_text=ref_text,
+    )
+    
+    sf.write("output_voice_clone.wav", wavs[0], sr)
+    ```
+  </Step>
+</Steps>
 
-<CardGroup cols={2}>
+## Batch Processing
 
-<Card title="Write Content" icon="pen-to-square" href="/essentials/markdown">
-  Learn MDX syntax and start writing your documentation.
-</Card>
+All models support batch processing for efficiency:
 
-<Card title="Customize style" icon="palette" href="/essentials/settings">
-  Make your docs match your brand perfectly.
-</Card>
+```python
+# Batch generate with CustomVoice
+wavs, sr = model.generate_custom_voice(
+    text=[
+        "First sentence.",
+        "Second sentence.",
+        "Third sentence."
+    ],
+    language=["English", "English", "English"],
+    speaker=["Ryan", "Aiden", "Ryan"],
+)
 
-<Card title="Add code examples" icon="square-code" href="/essentials/code">
-  Include syntax-highlighted code blocks.
-</Card>
+# Save all outputs
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
 
-<Card title="API documentation" icon="code" href="/api-reference/introduction">
-  Auto-generate API docs from OpenAPI specs.
-</Card>
+## Common Parameters
 
+All generation methods support these optional parameters:
+
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| `do_sample` | bool | True | Enable sampling for more natural speech |
+| `temperature` | float | 1.0 | Controls randomness (0.0-1.0) |
+| `top_k` | int | 50 | Top-k sampling parameter |
+| `top_p` | float | 1.0 | Nucleus sampling parameter |
+| `max_new_tokens` | int | 2048 | Maximum tokens to generate |
+| `non_streaming_mode` | bool | False | Force non-streaming generation |
+
+Example with custom parameters:
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text="Hello world!",
+    language="English",
+    speaker="Ryan",
+    temperature=0.7,
+    top_k=100,
+    top_p=0.95,
+)
+```
+
+## Model Selection Guide
+
+<CardGroup cols={3}>
+  <Card title="CustomVoice" icon="microphone">
+    **Use when:**
+    - You need consistent, high-quality preset voices
+    - You want instruction-based control (1.7B)
+    - You need multilingual support
+    
+    **Models:**
+    - 0.6B: 9 preset speakers
+    - 1.7B: 9 speakers + instructions
+  </Card>
+  
+  <Card title="VoiceDesign" icon="wand-magic-sparkles">
+    **Use when:**
+    - You need custom voice characteristics
+    - You want to describe voices in natural language
+    - You need creative voice variations
+    
+    **Model:**
+    - 1.7B only
+  </Card>
+  
+  <Card title="Base" icon="clone">
+    **Use when:**
+    - You need to clone specific voices
+    - You have reference audio samples
+    - You want to fine-tune for your use case
+    
+    **Models:**
+    - 0.6B and 1.7B
+    - Both support 3-second cloning
+  </Card>
 </CardGroup>
 
-<Note>
-  **Need help?** See our [full documentation](https://mintlify.com/docs) or join our [community](https://mintlify.com/community).
-</Note>
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Explore Guides" icon="book-open" href="/guides/custom-voice">
+    Learn about advanced features and workflows
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api/model/overview">
+    Explore the complete API documentation
+  </Card>
+  
+  <Card title="Performance Tips" icon="gauge-high" href="/advanced/performance">
+    Optimize for speed and quality
+  </Card>
+  
+  <Card title="Fine-tuning" icon="screwdriver-wrench" href="/advanced/fine-tuning">
+    Customize models for your specific needs
+  </Card>
+</CardGroup>
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Model downloads are slow">
+    Models are downloaded from Hugging Face on first use. For faster downloads in China, use ModelScope:
+    
+    ```bash
+    pip install modelscope
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --local_dir ./models
+    ```
+    
+    Then load from the local directory:
+    ```python
+    model = Qwen3TTSModel.from_pretrained("./models/Qwen3-TTS-12Hz-1.7B-CustomVoice", ...)
+    ```
+  </Accordion>
+  
+  <Accordion title="Out of memory errors">
+    Try these solutions:
+    1. Use the 0.6B model instead of 1.7B
+    2. Reduce batch size
+    3. Use `dtype=torch.float16` instead of `bfloat16`
+    4. Generate shorter text segments
+  </Accordion>
+  
+  <Accordion title="Audio quality is poor">
+    Check these factors:
+    1. Use the 12Hz models (better quality than 25Hz)
+    2. Set appropriate language explicitly
+    3. For voice cloning, ensure reference audio is clear (3+ seconds, good quality)
+    4. Adjust temperature (try 0.7-0.9 for more stable output)
+  </Accordion>
+  
+  <Accordion title="FlashAttention 2 installation fails">
+    FlashAttention 2 is optional but recommended:
+    - Requires CUDA 11.8 or higher
+    - On machines with limited RAM, use: `MAX_JOBS=4 pip install flash-attn --no-build-isolation`
+    - If it fails, the model will work without it (just slower)
+  </Accordion>
+</AccordionGroup>
+
+## Getting Help
+
+<Card title="Join the Community" icon="comments" href="https://github.com/QwenLM/Qwen3-TTS/issues">
+  Ask questions, report issues, and get help from the community on GitHub
+</Card>

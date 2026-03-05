@@ -1,0 +1,154 @@
+---
+title: Model API Overview
+description: Core interface for loading and using Qwen3-TTS models
+---
+
+## Introduction
+
+The Model API provides the main interface for working with Qwen3-TTS models. The `Qwen3TTSModel` class wraps the underlying HuggingFace model and provides three generation methods for different use cases:
+
+- **CustomVoice**: Generate speech using predefined speaker IDs
+- **VoiceDesign**: Generate speech with natural-language style instructions
+- **Base**: Generate speech by cloning voices from reference audio
+
+## Main Components
+
+### Qwen3TTSModel
+
+The primary class for model interaction. See [Qwen3TTSModel](/api/model/qwen3tts-model) for details.
+
+```python
+from qwen_tts import Qwen3TTSModel
+
+# Load a model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-CustomVoice-2B",
+    device_map="cuda:0"
+)
+```
+
+### Model Loading
+
+Load models using the `from_pretrained()` class method, which supports:
+
+- HuggingFace Hub repository IDs
+- Local model directories
+- Standard HuggingFace loading options (device_map, dtype, etc.)
+
+See [Qwen3TTSModel.from_pretrained()](/api/model/qwen3tts-model#from_pretrained) for all parameters.
+
+### Generation Methods
+
+The Model API provides three generation methods, each designed for a specific model type:
+
+<CardGroup cols={3}>
+  <Card title="generate_custom_voice" icon="microphone" href="/api/model/generation-methods#generate_custom_voice">
+    Generate speech using predefined speaker IDs with optional style instructions
+  </Card>
+  <Card title="generate_voice_design" icon="wand-magic-sparkles" href="/api/model/generation-methods#generate_voice_design">
+    Generate speech with natural-language voice descriptions
+  </Card>
+  <Card title="generate_voice_clone" icon="clone" href="/api/model/generation-methods#generate_voice_clone">
+    Clone voices from reference audio samples
+  </Card>
+</CardGroup>
+
+See [Generation Methods](/api/model/generation-methods) for detailed parameter documentation.
+
+### Voice Cloning
+
+For voice cloning workflows, use:
+
+- `create_voice_clone_prompt()` - Build reusable voice prompts from reference audio
+- `VoiceClonePromptItem` - Container for voice clone prompt data
+
+See [Voice Clone Prompt](/api/model/voice-clone-prompt) for usage details.
+
+### Utility Methods
+
+Query model capabilities:
+
+```python
+# Get supported languages
+languages = model.get_supported_languages()
+
+# Get supported speakers (CustomVoice models)
+speakers = model.get_supported_speakers()
+```
+
+## Quick Start
+
+### CustomVoice Model
+
+```python
+from qwen_tts import Qwen3TTSModel
+
+# Load model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-CustomVoice-2B",
+    device_map="cuda:0"
+)
+
+# Generate speech
+wavs, sr = model.generate_custom_voice(
+    text="Hello, world!",
+    speaker="aurora",
+    language="English"
+)
+```
+
+### VoiceDesign Model
+
+```python
+from qwen_tts import Qwen3TTSModel
+
+# Load model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-VoiceDesign-2B",
+    device_map="cuda:0"
+)
+
+# Generate speech
+wavs, sr = model.generate_voice_design(
+    text="Welcome to our service.",
+    instruct="A professional female voice with a warm tone",
+    language="English"
+)
+```
+
+### Base Model (Voice Cloning)
+
+```python
+from qwen_tts import Qwen3TTSModel
+
+# Load model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-Base-2B",
+    device_map="cuda:0"
+)
+
+# Generate speech
+wavs, sr = model.generate_voice_clone(
+    text="This is a test.",
+    ref_audio="reference.wav",
+    ref_text="Reference audio transcription",
+    language="English"
+)
+```
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Qwen3TTSModel" icon="cube" href="/api/model/qwen3tts-model">
+    Class documentation and initialization methods
+  </Card>
+  <Card title="Generation Methods" icon="play" href="/api/model/generation-methods">
+    Complete parameter reference for all generation methods
+  </Card>
+  <Card title="Voice Clone Prompt" icon="microphone-lines" href="/api/model/voice-clone-prompt">
+    Voice cloning workflow and prompt management
+  </Card>
+  <Card title="Examples" icon="code" href="/examples">
+    Complete usage examples and tutorials
+  </Card>
+</CardGroup>

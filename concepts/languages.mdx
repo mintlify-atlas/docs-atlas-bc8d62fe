@@ -1,0 +1,465 @@
+---
+title: Language Support
+description: Multilingual capabilities and language-specific features of Qwen3-TTS
+---
+
+## Overview
+
+Qwen3-TTS provides comprehensive multilingual support, covering **10 major languages** with native-quality synthesis. The models are trained on diverse multilingual data and support cross-lingual voice cloning and generation.
+
+## Supported Languages
+
+<CardGroup cols={3}>
+  <Card title="Chinese" icon="language">
+    普通话, Beijing Dialect, Sichuan Dialect
+  </Card>
+  
+  <Card title="English" icon="language">
+    American, British, and neutral accents
+  </Card>
+  
+  <Card title="Japanese" icon="language">
+    Standard Japanese (標準語)
+  </Card>
+  
+  <Card title="Korean" icon="language">
+    Standard Korean (표준어)
+  </Card>
+  
+  <Card title="German" icon="language">
+    Standard German (Hochdeutsch)
+  </Card>
+  
+  <Card title="French" icon="language">
+    European French (français européen)
+  </Card>
+  
+  <Card title="Russian" icon="language">
+    Standard Russian (русский)
+  </Card>
+  
+  <Card title="Portuguese" icon="language">
+    Brazilian and European Portuguese
+  </Card>
+  
+  <Card title="Spanish" icon="language">
+    European and Latin American Spanish
+  </Card>
+  
+  <Card title="Italian" icon="language">
+    Standard Italian (italiano)
+  </Card>
+</CardGroup>
+
+## Language Quality Comparison
+
+### Content Consistency (WER/CER ↓)
+
+Word Error Rate (WER) or Character Error Rate (CER) on multilingual test set - **lower is better**:
+
+| Language | 1.7B-Base | 0.6B-Base | Quality Tier |
+|----------|-----------|-----------|-------------|
+| **Chinese** | 0.928 | 1.145 | ⭐⭐⭐ Excellent |
+| **English** | 0.934 | 0.836 | ⭐⭐⭐ Excellent |
+| **Korean** | 1.755 | 1.741 | ⭐⭐⭐ Excellent |
+| **German** | 1.235 | 1.089 | ⭐⭐ Very Good |
+| **Italian** | 0.948 | 1.534 | ⭐⭐ Very Good |
+| **Portuguese** | 1.526 | 2.254 | ⭐⭐ Very Good |
+| **Spanish** | 1.126 | 1.491 | ⭐⭐ Very Good |
+| **French** | 2.858 | 2.931 | ⭐ Good |
+| **Russian** | 3.212 | 4.458 | ⭐ Good |
+| **Japanese** | 3.823 | 6.404 | ⭐ Good |
+
+<Note>
+  Chinese, English, and Korean achieve the best content accuracy, making them ideal for production applications requiring high precision.
+</Note>
+
+### Speaker Similarity (Cosine Similarity ↑)
+
+Speaker embedding similarity on voice cloning tasks - **higher is better**:
+
+| Language | 1.7B-Base | 0.6B-Base | Quality Tier |
+|----------|-----------|-----------|-------------|
+| **English** | 0.775 | **0.829** | ⭐⭐⭐ Excellent |
+| **Portuguese** | **0.817** | 0.794 | ⭐⭐⭐ Excellent |
+| **Spanish** | **0.814** | 0.812 | ⭐⭐⭐ Excellent |
+| **Italian** | **0.817** | 0.792 | ⭐⭐⭐ Excellent |
+| **Chinese** | 0.799 | **0.811** | ⭐⭐⭐ Excellent |
+| **Korean** | 0.799 | **0.812** | ⭐⭐⭐ Excellent |
+| **Russian** | **0.792** | 0.781 | ⭐⭐⭐ Excellent |
+| **Japanese** | **0.788** | 0.798 | ⭐⭐ Very Good |
+| **German** | **0.775** | 0.769 | ⭐⭐ Very Good |
+| **French** | **0.714** | 0.700 | ⭐⭐ Very Good |
+
+<Info>
+  All languages achieve strong speaker similarity (>0.70), indicating excellent voice cloning capabilities across the board.
+</Info>
+
+## Speaker Native Languages
+
+For **CustomVoice models**, the following 9 premium speakers are available:
+
+| Speaker | Voice Description | Native Language | Recommended Languages |
+|---------|-------------------|-----------------|----------------------|
+| **Vivian** | Bright, slightly edgy young female | Chinese | Chinese, English |
+| **Serena** | Warm, gentle young female | Chinese | Chinese, English |
+| **Uncle_Fu** | Seasoned male, low mellow timbre | Chinese | Chinese |
+| **Dylan** | Youthful Beijing male, clear natural | Chinese (Beijing) | Chinese, English |
+| **Eric** | Lively Chengdu male, slightly husky | Chinese (Sichuan) | Chinese |
+| **Ryan** | Dynamic male, strong rhythmic drive | English | English, Chinese |
+| **Aiden** | Sunny American male, clear midrange | English | English |
+| **Ono_Anna** | Playful Japanese female, light nimble | Japanese | Japanese, English |
+| **Sohee** | Warm Korean female, rich emotion | Korean | Korean, English |
+
+<Tip>
+  For best quality, use each speaker's native language. However, all speakers can speak any of the 10 supported languages with reasonable quality.
+</Tip>
+
+## Cross-Lingual Capabilities
+
+Qwen3-TTS supports **cross-lingual voice cloning**, allowing you to clone a voice in one language and generate speech in another.
+
+### Cross-Lingual Performance
+
+Mixed Error Rate (WER for English, CER for others) on cross-lingual benchmark - **lower is better**:
+
+| Task | 1.7B-Base | 0.6B-Base | Quality |
+|------|-----------|-----------|----------|
+| **Korean → English** | **3.09** | 3.48 | ⭐⭐⭐ Excellent |
+| **Japanese → English** | **3.04** | 3.95 | ⭐⭐⭐ Excellent |
+| **English → Chinese** | **4.77** | 5.66 | ⭐⭐ Very Good |
+| **Korean → Japanese** | **3.67** | 4.17 | ⭐⭐ Very Good |
+| **Korean → Chinese** | **4.82** | 8.12 | ⭐⭐ Very Good |
+| **English → Korean** | **5.14** | 6.83 | ⭐⭐ Very Good |
+| **Japanese → Korean** | **5.59** | 6.86 | ⭐⭐ Very Good |
+| **English → Japanese** | 7.21 | 7.74 | ⭐ Good |
+| **Chinese → Japanese** | 8.40 | 9.29 | ⭐ Good |
+
+<Info>
+  The 1.7B model generally performs better on cross-lingual tasks, especially for Korean and Japanese target languages.
+</Info>
+
+### Cross-Lingual Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+)
+
+# Clone English voice and speak Chinese
+wavs, sr = model.generate_voice_clone(
+    text="你好，很高兴见到你。",  # Chinese text
+    language="Chinese",
+    ref_audio="english_speaker.wav",  # English reference
+    ref_text="Hello, nice to meet you."
+)
+```
+
+## Language-Specific Considerations
+
+<AccordionGroup>
+  <Accordion title="Chinese (中文)">
+    **Strengths**:
+    - Excellent accuracy (WER ~0.93 for 1.7B)
+    - Strong dialect support (Beijing, Sichuan)
+    - Native speakers available (Vivian, Serena, Uncle_Fu, Dylan, Eric)
+    
+    **Considerations**:
+    - Tone accuracy is critical; may occasionally flatten in complex prosody
+    - Text input should use simplified or traditional Chinese consistently
+    - Pinyin input not officially supported
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_custom_voice(
+        text="这是一段测试文本，包含了复杂的语调和情感。",
+        language="Chinese",  # Always specify
+        speaker="Vivian",
+        instruct="温柔地说，带有一点兴奋的语气"  # Chinese instructions work best
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="English">
+    **Strengths**:
+    - Excellent accuracy (WER ~0.93 for 1.7B)
+    - Multiple native speakers (Ryan, Aiden)
+    - Strong cross-lingual source language
+    
+    **Considerations**:
+    - Accents: models default to neutral/American accent
+    - British English: supported but may sound slightly American-influenced
+    - Contractions and informal speech handled well
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_custom_voice(
+        text="I'm really excited to show you what we've built!",
+        language="English",
+        speaker="Ryan",
+        instruct="enthusiastic and energetic, slightly faster pace"
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Japanese (日本語)">
+    **Strengths**:
+    - Native speaker available (Ono_Anna)
+    - Good speaker similarity (0.788)
+    
+    **Considerations**:
+    - Higher character error rate (~3.8-6.4%)
+    - Pitch accent may not always be perfect
+    - Kanji, hiragana, and katakana all supported
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_custom_voice(
+        text="こんにちは、お元気ですか？今日はいい天気ですね。",
+        language="Japanese",
+        speaker="Ono_Anna",  # Use native speaker for best quality
+        instruct="明るく元気な声で"  # Japanese instructions recommended
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Korean (한국어)">
+    **Strengths**:
+    - Excellent accuracy (WER ~1.75)
+    - Native speaker available (Sohee)
+    - Strong cross-lingual capabilities
+    
+    **Considerations**:
+    - Hangul input only (no romanization)
+    - Handles formal and informal speech
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_custom_voice(
+        text="안녕하세요, 만나서 반갑습니다.",
+        language="Korean",
+        speaker="Sohee",
+        instruct="따뜻하고 친근한 목소리로"  # Korean instructions
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="German (Deutsch)">
+    **Strengths**:
+    - Good accuracy (WER ~1.09-1.24)
+    - Good speaker similarity (0.77)
+    
+    **Considerations**:
+    - Compound words handled well
+    - Umlauts (ä, ö, ü) supported
+    - May occasionally anglicize pronunciation
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="Guten Tag! Wie geht es Ihnen heute?",
+        language="German",
+        ref_audio="german_speaker.wav",
+        ref_text="Hallo, schön Sie kennenzulernen."
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="French (Français)">
+    **Strengths**:
+    - Handles liaison and elision
+    - Reasonable accuracy for European languages
+    
+    **Considerations**:
+    - Moderate error rate (~2.86-2.93)
+    - Nasal vowels may be approximated
+    - Accents (é, è, ê, etc.) should be included
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="Bonjour ! Comment allez-vous aujourd'hui ?",
+        language="French",
+        ref_audio="french_speaker.wav",
+        ref_text="Enchanté de faire votre connaissance."
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Russian (Русский)">
+    **Strengths**:
+    - Strong speaker similarity (0.79)
+    - Handles Cyrillic script
+    
+    **Considerations**:
+    - Moderate error rate (~3.2-4.5)
+    - Stress patterns may not always be perfect
+    - Cyrillic input required
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="Привет! Как дела?",
+        language="Russian",
+        ref_audio="russian_speaker.wav",
+        ref_text="Здравствуйте, рад познакомиться."
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Portuguese (Português)">
+    **Strengths**:
+    - Excellent speaker similarity (0.817)
+    - Supports both Brazilian and European variants
+    
+    **Considerations**:
+    - Error rate ~1.5-2.3
+    - Diacritics (ã, õ, ç) should be included
+    - May default to Brazilian pronunciation
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="Olá! Como você está hoje?",
+        language="Portuguese",
+        ref_audio="portuguese_speaker.wav",
+        ref_text="Prazer em conhecê-lo."
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Spanish (Español)">
+    **Strengths**:
+    - Excellent speaker similarity (0.814)
+    - Good accuracy (WER ~1.13-1.49)
+    - Supports European and Latin American variants
+    
+    **Considerations**:
+    - Accent marks (á, é, í, ó, ú) should be included
+    - ñ character supported
+    - May default to Castilian pronunciation
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="¡Hola! ¿Cómo estás hoy?",
+        language="Spanish",
+        ref_audio="spanish_speaker.wav",
+        ref_text="Mucho gusto en conocerte."
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Italian (Italiano)">
+    **Strengths**:
+    - Excellent speaker similarity (0.817)
+    - Good accuracy (WER ~0.95-1.53)
+    - Handles double consonants well
+    
+    **Considerations**:
+    - Accent marks (à, è, é, ì, ò, ù) should be included
+    - Regional accents not explicitly supported
+    
+    **Best Practices**:
+    ```python
+    wavs, sr = model.generate_voice_clone(
+        text="Ciao! Come stai oggi?",
+        language="Italian",
+        ref_audio="italian_speaker.wav",
+        ref_text="Piacere di conoscerti."
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Automatic Language Detection
+
+Qwen3-TTS supports automatic language detection when `language="Auto"` is specified:
+
+```python
+# Automatic language detection
+wavs, sr = model.generate_custom_voice(
+    text="Hello, 你好, こんにちは",
+    language="Auto",  # Detects mixed languages
+    speaker="Vivian"
+)
+```
+
+<Warning>
+  **Limitations of Auto mode**:
+  - May misdetect short phrases or ambiguous text
+  - Mixed-language text (code-switching) may be inconsistent
+  - For best quality, explicitly specify the language when known
+</Warning>
+
+## Multilingual Generation Tips
+
+<Steps>
+  <Step title="Choose the Right Speaker">
+    Use native speakers for best quality:
+    - Chinese text → Vivian, Serena, Uncle_Fu, Dylan, Eric
+    - English text → Ryan, Aiden
+    - Japanese text → Ono_Anna
+    - Korean text → Sohee
+  </Step>
+  
+  <Step title="Specify Language Explicitly">
+    Always specify language when known to avoid detection errors:
+    ```python
+    language="Chinese"  # Better than language="Auto"
+    ```
+  </Step>
+  
+  <Step title="Use Native-Language Instructions">
+    Instructions work best in the same language as the content:
+    ```python
+    # Chinese text with Chinese instruction
+    text="你好", instruct="温柔的语气"
+    
+    # English text with English instruction  
+    text="Hello", instruct="gentle tone"
+    ```
+  </Step>
+  
+  <Step title="Test Cross-Lingual Carefully">
+    Cross-lingual quality varies by language pair. Test thoroughly:
+    - English → Chinese: Very good
+    - Japanese → Chinese: Good
+    - Chinese → Japanese: Moderate
+  </Step>
+</Steps>
+
+## Language Roadmap
+
+<Info>
+  **Future language support** (tentative):
+  - Arabic (العربية)
+  - Hindi (हिन्दी)
+  - Turkish (Türkçe)
+  - Vietnamese (Tiếng Việt)
+  - Thai (ไทย)
+  
+  Check the [GitHub repository](https://github.com/QwenLM/Qwen3-TTS) for updates.
+</Info>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Voice Cloning" icon="clone" href="/guides/voice-cloning">
+    Learn how to clone voices across languages
+  </Card>
+  
+  <Card title="Custom Voice" icon="microphone" href="/guides/custom-voice">
+    Use premium speakers in different languages
+  </Card>
+  
+  <Card title="Voice Design" icon="palette" href="/guides/voice-design">
+    Create voices with language-specific characteristics
+  </Card>
+  
+  <Card title="Examples" icon="code" href="/examples/multilingual">
+    See multilingual code examples
+  </Card>
+</CardGroup>

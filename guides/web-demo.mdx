@@ -1,0 +1,379 @@
+---
+title: Web UI Demo
+description: Launch an interactive Gradio web interface for Qwen3-TTS
+---
+
+Qwen3-TTS includes a built-in Gradio web interface for easy testing and demonstration. Launch a local or remote web UI to try all model capabilities without writing code.
+
+## Quick Start
+
+Launch the demo with a single command:
+
+```bash
+# CustomVoice model
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+
+# VoiceDesign model
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign
+
+# Base model (voice cloning)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base
+```
+
+Then open your browser to `http://localhost:8000`
+
+## Installation
+
+The demo is included when you install the `qwen-tts` package:
+
+```bash
+pip install -U qwen-tts
+```
+
+## Command-Line Options
+
+View all available options:
+
+```bash
+qwen-tts-demo --help
+```
+
+### Basic Options
+
+```bash
+# Specify model checkpoint
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+
+# Or use the -c flag
+qwen-tts-demo -c Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+
+# Specify IP and port
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 0.0.0.0 --port 8000
+
+# Use specific GPU
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --device cuda:0
+```
+
+### Model Loading Options
+
+```bash
+# Choose dtype (default: bfloat16)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --dtype bfloat16
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --dtype float16
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --dtype float32
+
+# Disable FlashAttention-2
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --no-flash-attn
+
+# Enable FlashAttention-2 (default)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --flash-attn
+```
+
+### Server Options
+
+```bash
+# Custom IP and port
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 127.0.0.1 --port 7860
+
+# Enable public sharing (creates public Gradio link)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --share
+
+# Set concurrency limit
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --concurrency 16
+```
+
+### Generation Parameters
+
+```bash
+# Customize generation parameters
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+  --max-new-tokens 2048 \
+  --temperature 0.9 \
+  --top-k 50 \
+  --top-p 1.0 \
+  --repetition-penalty 1.05
+```
+
+## HTTPS Setup for Base Model
+
+<Warning>
+When deploying the **Base model** demo, HTTPS is required for microphone access in modern browsers. Without HTTPS, the microphone recording feature will not work.
+</Warning>
+
+### Generate SSL Certificate
+
+Create a self-signed certificate for development:
+
+```bash
+openssl req -x509 -newkey rsa:2048 \
+  -keyout key.pem -out cert.pem \
+  -days 365 -nodes \
+  -subj "/CN=localhost"
+```
+
+This creates:
+- `cert.pem` - SSL certificate (valid for 365 days)
+- `key.pem` - Private key
+
+### Launch with HTTPS
+
+```bash
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+  --ip 0.0.0.0 --port 8000 \
+  --ssl-certfile cert.pem \
+  --ssl-keyfile key.pem \
+  --no-ssl-verify
+```
+
+Then open `https://<your-ip>:8000` in your browser.
+
+<Note>
+Your browser will show a security warning for self-signed certificates. This is expected for development. Click "Advanced" and "Proceed to site" to continue.
+</Note>
+
+### Production SSL Certificate
+
+For production deployments, use a real certificate from Let's Encrypt or your certificate authority:
+
+```bash
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+  --ip 0.0.0.0 --port 443 \
+  --ssl-certfile /path/to/fullchain.pem \
+  --ssl-keyfile /path/to/privkey.pem
+```
+
+## Using the Web Interface
+
+### CustomVoice Demo
+
+The CustomVoice demo interface includes:
+- **Text input** - Enter text to synthesize
+- **Language selection** - Choose target language or Auto
+- **Speaker dropdown** - Select from 9 premium speakers
+- **Instruction field** - Optional natural language control (1.7B only)
+- **Generate button** - Create audio
+- **Audio player** - Listen to and download results
+
+```bash
+# Launch CustomVoice demo
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 0.0.0.0 --port 8000
+```
+
+### VoiceDesign Demo
+
+The VoiceDesign demo interface includes:
+- **Text input** - Enter text to synthesize
+- **Language selection** - Choose target language or Auto
+- **Voice description** - Describe desired voice characteristics
+- **Generate button** - Create audio with custom voice
+- **Audio player** - Listen to and download results
+
+```bash
+# Launch VoiceDesign demo
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign --ip 0.0.0.0 --port 8000
+```
+
+### Base Model Demo (Voice Cloning)
+
+The Base model demo has two tabs:
+
+#### Tab 1: Clone & Generate
+- **Reference audio upload** - Upload or record 3+ seconds of audio
+- **Reference text** - Transcript of reference audio
+- **X-vector only checkbox** - Use speaker embedding only (lower quality)
+- **Target text** - New text to synthesize
+- **Language selection** - Target language
+- **Generate button** - Clone voice and generate
+- **Audio player** - Listen to and download results
+
+#### Tab 2: Save / Load Voice
+- **Save voice** - Create reusable voice file from reference audio
+- **Load voice** - Upload saved voice file and generate new content
+
+```bash
+# Launch Base model demo (requires HTTPS for microphone)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+  --ip 0.0.0.0 --port 8000 \
+  --ssl-certfile cert.pem \
+  --ssl-keyfile key.pem \
+  --no-ssl-verify
+```
+
+## Remote Access
+
+### Local Network Access
+
+Access from other devices on your local network:
+
+```bash
+# Bind to all interfaces
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 0.0.0.0 --port 8000
+
+# Find your local IP
+ifconfig  # Linux/Mac
+ipconfig  # Windows
+
+# Access from other devices
+# http://<your-local-ip>:8000
+```
+
+### VS Code Port Forwarding
+
+When running in VS Code, use port forwarding:
+
+```bash
+# Launch with default localhost
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --port 8000
+
+# VS Code will detect the port and offer to forward it
+# Click "Open in Browser" from the notification
+```
+
+### Public Access with Gradio Share
+
+Create a temporary public URL (development only):
+
+```bash
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --share
+
+# Output will include:
+# Running on public URL: https://xxxxxxxx.gradio.live
+```
+
+<Warning>
+The `--share` option creates a temporary public URL that expires after 72 hours. Only use for development and demos. For production, use proper HTTPS deployment.
+</Warning>
+
+## Example Commands
+
+### Development
+
+```bash
+# Quick local testing
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice
+
+# With custom parameters
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+  --temperature 0.8 \
+  --top-k 30
+
+# Test on specific GPU
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --device cuda:1
+```
+
+### Production
+
+```bash
+# Production server with HTTPS
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+  --ip 0.0.0.0 \
+  --port 443 \
+  --ssl-certfile /etc/letsencrypt/live/yourdomain.com/fullchain.pem \
+  --ssl-keyfile /etc/letsencrypt/live/yourdomain.com/privkey.pem \
+  --concurrency 32
+
+# Behind reverse proxy (use HTTP)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+  --ip 127.0.0.1 \
+  --port 8000 \
+  --concurrency 32
+```
+
+### Demo and Sharing
+
+```bash
+# Quick public demo
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign --share
+
+# LAN demo with HTTPS (for Base model)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+  --ip 0.0.0.0 \
+  --port 8000 \
+  --ssl-certfile cert.pem \
+  --ssl-keyfile key.pem \
+  --no-ssl-verify
+```
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="Port already in use">
+    Change the port with `--port 8001` or find and kill the process using the port:
+    ```bash
+    # Linux/Mac
+    lsof -ti:8000 | xargs kill -9
+    
+    # Windows
+    netstat -ano | findstr :8000
+    taskkill /PID <PID> /F
+    ```
+  </Accordion>
+
+  <Accordion title="Microphone not working (Base model)">
+    The Base model requires HTTPS for microphone access. Use the SSL setup commands above to enable HTTPS.
+  </Accordion>
+
+  <Accordion title="Out of memory">
+    Use the smaller 0.6B model:
+    ```bash
+    qwen-tts-demo Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice
+    ```
+    Or use CPU (very slow):
+    ```bash
+    qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --device cpu
+    ```
+  </Accordion>
+
+  <Accordion title="Slow generation">
+    Ensure FlashAttention-2 is installed and enabled (default). Use bfloat16 dtype (default). Check GPU utilization with `nvidia-smi`.
+  </Accordion>
+
+  <Accordion title="Can't access from other devices">
+    Make sure you're using `--ip 0.0.0.0` and your firewall allows the port. Check your local IP with `ifconfig` or `ipconfig`.
+  </Accordion>
+</AccordionGroup>
+
+## Complete Reference
+
+All command-line options:
+
+```bash
+qwen-tts-demo [CHECKPOINT] [OPTIONS]
+
+Positional:
+  CHECKPOINT              Model checkpoint path or HuggingFace repo id
+
+Model Loading:
+  -c, --checkpoint PATH   Alternative way to specify checkpoint
+  --device DEVICE         Device (default: cuda:0)
+  --dtype DTYPE           Model dtype (default: bfloat16)
+  --flash-attn/--no-flash-attn  Enable FlashAttention-2 (default: enabled)
+
+Server:
+  --ip IP                 Server IP (default: 0.0.0.0)
+  --port PORT             Server port (default: 8000)
+  --share/--no-share      Create public URL (default: disabled)
+  --concurrency N         Queue concurrency (default: 16)
+
+HTTPS:
+  --ssl-certfile PATH     SSL certificate file
+  --ssl-keyfile PATH      SSL key file
+  --ssl-verify/--no-ssl-verify  Verify SSL (default: enabled)
+
+Generation:
+  --max-new-tokens N      Max tokens to generate
+  --temperature FLOAT     Sampling temperature
+  --top-k N               Top-k sampling
+  --top-p FLOAT           Top-p sampling
+  --repetition-penalty FLOAT  Repetition penalty
+  --subtalker-top-k N     Subtalker top-k
+  --subtalker-top-p FLOAT Subtalker top-p
+  --subtalker-temperature FLOAT  Subtalker temperature
+```
+
+## Next Steps
+
+- Learn Python API usage in [Custom Voice](/guides/custom-voice)
+- Explore [Voice Design](/guides/voice-design) capabilities
+- Try [Voice Cloning](/guides/voice-cloning) programmatically
+- See [API Reference](/api-reference) for DashScope cloud API

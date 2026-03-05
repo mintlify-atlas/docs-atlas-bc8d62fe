@@ -1,0 +1,71 @@
+---
+title: Tokenizer API Overview
+description: Encode and decode audio using Qwen3-TTS speech tokenizers
+---
+
+The Tokenizer API provides a unified interface for encoding audio into discrete codes and decoding them back to waveforms. It supports both 25Hz and 12Hz tokenizer models.
+
+## Qwen3TTSTokenizer Class
+
+The `Qwen3TTSTokenizer` class is a wrapper for Qwen3 TTS Tokenizers with HuggingFace-style loading and inference. It provides:
+
+- **HuggingFace Integration**: Load models using `from_pretrained()`
+- **Flexible Input Formats**: Support for file paths, URLs, base64 strings, and numpy arrays
+- **Batch Processing**: Encode and decode multiple audio files simultaneously
+- **Automatic Resampling**: Handles sample rate conversion automatically
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:44`
+</Note>
+
+## Key Features
+
+### Supported Input Formats
+
+The tokenizer accepts audio in multiple formats:
+
+- **File paths**: Local WAV files
+- **URLs**: HTTP/HTTPS audio URLs
+- **Base64 strings**: Encoded audio data (with or without data URL prefix)
+- **NumPy arrays**: Raw waveform arrays (requires `sr` parameter)
+- **Batch inputs**: Lists of any of the above formats
+
+### Model Variants
+
+- **25Hz Tokenizer** (`Qwen/Qwen3-TTS-Tokenizer-25Hz`): Returns audio codes, x-vectors, and reference mel-spectrograms
+- **12Hz Tokenizer** (`Qwen/Qwen3-TTS-Tokenizer-12Hz`): Returns multi-quantizer audio codes
+
+### Return Types
+
+<Tip>
+For numpy array input, you **must** pass the `sr` parameter to specify the original sampling rate.
+</Tip>
+
+## Quick Navigation
+
+<CardGroup cols={2}>
+  <Card title="Qwen3TTSTokenizer" icon="microchip" href="/api/tokenizer/qwen3tts-tokenizer">
+    Class initialization and loading methods
+  </Card>
+  <Card title="Encode & Decode" icon="arrow-right-arrow-left" href="/api/tokenizer/encode-decode">
+    Encoding audio to codes and decoding back to waveforms
+  </Card>
+</CardGroup>
+
+## Basic Usage
+
+```python
+from qwen_tts import Qwen3TTSTokenizer
+
+# Load tokenizer
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+    device_map="cuda:0"
+)
+
+# Encode audio
+encoded = tokenizer.encode("audio.wav")
+
+# Decode back to waveform
+wavs, sample_rate = tokenizer.decode(encoded)
+```

@@ -1,0 +1,378 @@
+---
+title: Available Models
+description: Overview of Qwen3-TTS model variants and their capabilities
+---
+
+## Model Overview
+
+Qwen3-TTS offers a family of models optimized for different use cases, from voice cloning to instruction-based voice design. All models are built on the same architecture but are fine-tuned for specific capabilities.
+
+## Model Comparison
+
+| Model | Parameters | Features | Language Support | Streaming | Instruction Control |
+|-------|------------|----------|------------------|-----------|--------------------|
+| **Qwen3-TTS-12Hz-1.7B-VoiceDesign** | 1.7B | Voice design from text descriptions | 10 languages | ✅ | ✅ |
+| **Qwen3-TTS-12Hz-1.7B-CustomVoice** | 1.7B | 9 premium voices with style control | 10 languages | ✅ | ✅ |
+| **Qwen3-TTS-12Hz-1.7B-Base** | 1.7B | 3-second voice cloning | 10 languages | ✅ | ❌ |
+| **Qwen3-TTS-12Hz-0.6B-CustomVoice** | 0.6B | 9 premium voices | 10 languages | ✅ | ❌ |
+| **Qwen3-TTS-12Hz-0.6B-Base** | 0.6B | 3-second voice cloning | 10 languages | ✅ | ❌ |
+
+**Supported Languages**: Chinese, English, Japanese, Korean, German, French, Russian, Portuguese, Spanish, Italian
+
+## Model Variants
+
+<CardGroup cols={2}>
+  <Card title="VoiceDesign" icon="palette" iconType="duotone">
+    Create custom voices from natural language descriptions
+  </Card>
+  
+  <Card title="CustomVoice" icon="microphone" iconType="duotone">
+    Use 9 premium pre-trained voices with style control
+  </Card>
+  
+  <Card title="Base" icon="clone" iconType="duotone">
+    Clone any voice from just 3 seconds of audio
+  </Card>
+  
+  <Card title="Tokenizer" icon="waveform-lines" iconType="duotone">
+    Encode/decode audio for compression and transport
+  </Card>
+</CardGroup>
+
+### 1. Qwen3-TTS-12Hz-1.7B-VoiceDesign
+
+**Best for**: Creating unique voices based on detailed descriptions
+
+<Tabs>
+  <Tab title="Capabilities">
+    - Generate voices from natural language descriptions
+    - Control timbre, age, gender, emotion, and speaking style
+    - Instruction-based prosody and tone adjustment
+    - Adaptive emotional expression based on text semantics
+    - Streaming generation support
+  </Tab>
+  
+  <Tab title="Use Cases">
+    - Character voice creation for games and animation
+    - Personalized virtual assistants
+    - Content creation requiring unique voices
+    - Prototyping voice concepts without recording
+  </Tab>
+  
+  <Tab title="Example">
+    ```python
+    from qwen_tts import Qwen3TTSModel
+    
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign"
+    )
+    
+    wavs, sr = model.generate_voice_design(
+        text="Hello, how can I help you today?",
+        language="English",
+        instruct="Male, 30 years old, warm and friendly tone, "
+                 "professional voice with clear articulation"
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### 2. Qwen3-TTS-12Hz-1.7B-CustomVoice
+
+**Best for**: Production applications requiring consistent, high-quality voices
+
+<Tabs>
+  <Tab title="Capabilities">
+    - 9 premium pre-trained voices
+    - Style control via natural language instructions
+    - Covers various genders, ages, languages, and dialects
+    - Instruction-based emotion and prosody control
+    - Streaming generation support
+  </Tab>
+  
+  <Tab title="Available Voices">
+    | Speaker | Description | Native Language |
+    |---------|-------------|----------------|
+    | Vivian | Bright, slightly edgy young female | Chinese |
+    | Serena | Warm, gentle young female | Chinese |
+    | Uncle_Fu | Seasoned male, low mellow timbre | Chinese |
+    | Dylan | Youthful Beijing male, clear natural | Chinese (Beijing Dialect) |
+    | Eric | Lively Chengdu male, slightly husky | Chinese (Sichuan Dialect) |
+    | Ryan | Dynamic male, strong rhythmic drive | English |
+    | Aiden | Sunny American male, clear midrange | English |
+    | Ono_Anna | Playful Japanese female, light nimble | Japanese |
+    | Sohee | Warm Korean female, rich emotion | Korean |
+  </Tab>
+  
+  <Tab title="Example">
+    ```python
+    from qwen_tts import Qwen3TTSModel
+    
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice"
+    )
+    
+    # List available speakers
+    print(model.get_supported_speakers())
+    
+    wavs, sr = model.generate_custom_voice(
+        text="I'm so excited to announce our new product!",
+        language="English",
+        speaker="Ryan",
+        instruct="Very enthusiastic and energetic"
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### 3. Qwen3-TTS-12Hz-1.7B-Base
+
+**Best for**: Voice cloning and fine-tuning for custom applications
+
+<Tabs>
+  <Tab title="Capabilities">
+    - Clone any voice from 3 seconds of audio
+    - Maintains speaker characteristics and style
+    - Support for reference audio in multiple formats (file, URL, bytes)
+    - Can be fine-tuned for specific domains or speakers
+    - Streaming generation support
+  </Tab>
+  
+  <Tab title="Use Cases">
+    - Personal voice cloning
+    - Voice preservation and restoration
+    - Audiobook narration in original voice
+    - Custom voice assistants
+    - Fine-tuning base for specialized applications
+  </Tab>
+  
+  <Tab title="Example">
+    ```python
+    from qwen_tts import Qwen3TTSModel
+    
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-Base"
+    )
+    
+    wavs, sr = model.generate_voice_clone(
+        text="This is a test of voice cloning.",
+        language="English",
+        ref_audio="path/to/reference.wav",
+        ref_text="The transcript of the reference audio."
+    )
+    ```
+  </Tab>
+</Tabs>
+
+### 4. Qwen3-TTS-12Hz-0.6B Models
+
+**Best for**: Applications requiring faster inference or limited resources
+
+The 0.6B variants offer:
+- **Faster inference**: ~1.7x faster than 1.7B models
+- **Lower memory**: Reduced GPU memory requirements
+- **Good quality**: Maintains high quality with slight trade-off vs 1.7B
+- **Same features**: CustomVoice and Base variants available
+
+<Note>
+  The 0.6B models are ideal for edge devices, high-throughput services, or applications where speed is prioritized over maximum quality.
+</Note>
+
+### 5. Qwen3-TTS-Tokenizer-12Hz
+
+**Best for**: Audio compression, transport, and training data preparation
+
+<Tabs>
+  <Tab title="Capabilities">
+    - Encode audio to discrete codes (compression)
+    - Decode codes back to audio (reconstruction)
+    - 12Hz frame rate (12 frames per second)
+    - 16 residual quantizers
+    - 2048 codebook size per quantizer
+    - 24kHz sample rate
+  </Tab>
+  
+  <Tab title="Use Cases">
+    - Efficient audio storage and transmission
+    - Preparing training data for TTS models
+    - Audio codec research
+    - Analyzing speech representations
+  </Tab>
+  
+  <Tab title="Example">
+    ```python
+    from qwen_tts import Qwen3TTSTokenizer
+    
+    tokenizer = Qwen3TTSTokenizer.from_pretrained(
+        "Qwen/Qwen3-TTS-Tokenizer-12Hz"
+    )
+    
+    # Encode audio to codes
+    codes = tokenizer.encode("input.wav")
+    
+    # Decode codes back to audio
+    wavs, sr = tokenizer.decode(codes)
+    ```
+  </Tab>
+</Tabs>
+
+## Model Selection Guide
+
+<AccordionGroup>
+  <Accordion title="I want to create unique character voices">
+    **Recommended**: Qwen3-TTS-12Hz-1.7B-VoiceDesign
+    
+    This model excels at generating voices from descriptions. You can specify exact characteristics like "teenage girl with cheerful tone" or "elderly professor with authoritative voice."
+  </Accordion>
+  
+  <Accordion title="I need consistent professional voices">
+    **Recommended**: Qwen3-TTS-12Hz-1.7B-CustomVoice (or 0.6B for faster inference)
+    
+    Use the 9 premium pre-trained voices for production applications. They're highly consistent and support instruction-based style control.
+  </Accordion>
+  
+  <Accordion title="I want to clone a specific person's voice">
+    **Recommended**: Qwen3-TTS-12Hz-1.7B-Base (or 0.6B for faster inference)
+    
+    Provide 3 seconds of reference audio to clone any voice. Ideal for personal voice assistants or preserving specific speaker characteristics.
+  </Accordion>
+  
+  <Accordion title="I need fast inference for high-throughput services">
+    **Recommended**: Qwen3-TTS-12Hz-0.6B-CustomVoice or 0.6B-Base
+    
+    The 0.6B models offer significantly faster inference while maintaining good quality. Perfect for real-time applications or serving many concurrent requests.
+  </Accordion>
+  
+  <Accordion title="I want to fine-tune for my specific use case">
+    **Recommended**: Qwen3-TTS-12Hz-1.7B-Base or 0.6B-Base
+    
+    Base models serve as excellent starting points for fine-tuning. See the [Fine-Tuning Guide](/guides/fine-tuning) for details.
+  </Accordion>
+  
+  <Accordion title="I need audio compression and codec functionality">
+    **Recommended**: Qwen3-TTS-Tokenizer-12Hz
+    
+    Use the tokenizer for encode/decode operations, audio compression, or preparing training data.
+  </Accordion>
+</AccordionGroup>
+
+## Performance Benchmarks
+
+### Content Consistency (WER ↓)
+
+Word Error Rate on Seed-TTS test set:
+
+| Model | Chinese | English |
+|-------|---------|----------|
+| Qwen3-TTS-12Hz-1.7B-Base | **0.77** | **1.24** |
+| Qwen3-TTS-12Hz-0.6B-Base | 0.92 | 1.32 |
+| CosyVoice 3 | **0.71** | 1.45 |
+| MiniMax-Speech | 0.83 | 1.65 |
+
+### Speaker Similarity (Cosine Similarity ↑)
+
+Speaker similarity on multilingual test set:
+
+| Language | 1.7B-Base | 0.6B-Base |
+|----------|-----------|----------|
+| Chinese | 0.799 | **0.811** |
+| English | 0.775 | **0.829** |
+| Japanese | **0.788** | 0.798 |
+| Korean | **0.799** | 0.812 |
+
+<Note>
+  **Higher scores** indicate better speaker similarity preservation. The 0.6B model surprisingly outperforms 1.7B in some languages.
+</Note>
+
+## Hardware Requirements
+
+### GPU Memory Usage
+
+| Model | FP16/BF16 | FP32 |
+|-------|-----------|------|
+| 1.7B models | ~4-6 GB | ~8-12 GB |
+| 0.6B models | ~2-3 GB | ~4-6 GB |
+| Tokenizer | ~1-2 GB | ~2-4 GB |
+
+<Warning>
+  Memory requirements increase with batch size and sequence length. Add 2-4 GB for FlashAttention 2 and generation overhead.
+</Warning>
+
+### Inference Speed
+
+Typical inference times (per second of audio):
+
+| Model | GPU | Speed (RTF) |
+|-------|-----|-------------|
+| 1.7B | A100 | ~0.1x |
+| 1.7B | V100 | ~0.15x |
+| 0.6B | A100 | ~0.06x |
+| 0.6B | V100 | ~0.09x |
+
+<Info>
+  **RTF (Real-Time Factor)**: 0.1x means generating 1 second of audio takes 0.1 seconds. Lower is faster.
+</Info>
+
+## Model Downloads
+
+Models are automatically downloaded when you call `from_pretrained()`. For manual downloads:
+
+<Tabs>
+  <Tab title="Hugging Face">
+    ```bash
+    pip install -U "huggingface_hub[cli]"
+    
+    # Download specific model
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign \
+      --local-dir ./Qwen3-TTS-12Hz-1.7B-VoiceDesign
+    
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local-dir ./Qwen3-TTS-12Hz-1.7B-CustomVoice
+    
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+      --local-dir ./Qwen3-TTS-12Hz-1.7B-Base
+    
+    huggingface-cli download Qwen/Qwen3-TTS-Tokenizer-12Hz \
+      --local-dir ./Qwen3-TTS-Tokenizer-12Hz
+    ```
+  </Tab>
+  
+  <Tab title="ModelScope">
+    ```bash
+    pip install -U modelscope
+    
+    # Download specific model (recommended for users in Mainland China)
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign \
+      --local_dir ./Qwen3-TTS-12Hz-1.7B-VoiceDesign
+    
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local_dir ./Qwen3-TTS-12Hz-1.7B-CustomVoice
+    
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+      --local_dir ./Qwen3-TTS-12Hz-1.7B-Base
+    
+    modelscope download --model Qwen/Qwen3-TTS-Tokenizer-12Hz \
+      --local_dir ./Qwen3-TTS-Tokenizer-12Hz
+    ```
+  </Tab>
+</Tabs>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart/installation">
+    Install and start using Qwen3-TTS models
+  </Card>
+  
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Understand how the models work internally
+  </Card>
+  
+  <Card title="Language Support" icon="globe" href="/concepts/languages">
+    Learn about multilingual capabilities
+  </Card>
+  
+  <Card title="Fine-Tuning" icon="sliders" href="/guides/fine-tuning">
+    Customize models for your specific use case
+  </Card>
+</CardGroup>

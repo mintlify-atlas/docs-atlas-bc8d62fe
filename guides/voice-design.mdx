@@ -1,0 +1,339 @@
+---
+title: Voice Design
+description: Create custom voices using natural language descriptions
+---
+
+The **VoiceDesign** model (`Qwen3-TTS-12Hz-1.7B-VoiceDesign`) allows you to generate speech with custom voice characteristics by providing natural language descriptions. Describe the voice you want, and the model will synthesize speech matching your description.
+
+## Overview
+
+Voice Design enables you to:
+- Create voices from textual descriptions (gender, age, accent, emotion, etc.)
+- Control speaking style, tone, and prosody through natural language
+- Generate unique voices without reference audio
+- Combine voice design with voice cloning for reusable custom speakers
+
+## Basic Usage
+
+Generate speech with a voice description:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Generate with voice description
+wavs, sr = model.generate_voice_design(
+    text="哥哥，你回来啦，人家等了你好久好久了，要抱抱！",
+    language="Chinese",
+    instruct="体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果。",
+)
+
+sf.write("output.wav", wavs[0], sr)
+```
+
+## Voice Description Examples
+
+### Basic Characteristics
+
+Describe fundamental voice attributes:
+
+```python
+# Young male voice
+wavs, sr = model.generate_voice_design(
+    text="Hello, how can I help you today?",
+    language="English",
+    instruct="Male, 25 years old, friendly and professional tone",
+)
+
+# Elderly female voice
+wavs, sr = model.generate_voice_design(
+    text="Come here, dear, let me tell you a story.",
+    language="English",
+    instruct="Female, 70 years old, warm and grandmotherly voice with slight raspiness",
+)
+
+# Teen voice with nervousness
+wavs, sr = model.generate_voice_design(
+    text="H-hey! You dropped your notebook. I think it's yours?",
+    language="English",
+    instruct="Male, 17 years old, tenor range, gaining confidence - deeper breath support now, though vowels still tighten when nervous",
+)
+```
+
+### Emotional Expression
+
+Control emotional characteristics through descriptions:
+
+```python
+# Excited and energetic
+wavs, sr = model.generate_voice_design(
+    text="We did it! The project is finally complete!",
+    language="English",
+    instruct="Young female voice, extremely excited and energetic, speaking quickly with rising intonation",
+)
+
+# Worried and anxious
+wavs, sr = model.generate_voice_design(
+    text="I can't find my keys anywhere. What am I going to do?",
+    language="English",
+    instruct="Middle-aged male voice, worried and anxious tone, slightly breathless and speaking faster than normal",
+)
+
+# Incredulous with panic
+wavs, sr = model.generate_voice_design(
+    text="It's in the top drawer... wait, it's empty? No way, that's impossible! I'm sure I put it there!",
+    language="English",
+    instruct="Speak in an incredulous tone, but with a hint of panic beginning to creep into your voice.",
+)
+```
+
+### Accent and Regional Characteristics
+
+```python
+# British accent
+wavs, sr = model.generate_voice_design(
+    text="Good afternoon. Shall we proceed with the meeting?",
+    language="English",
+    instruct="Male, 40s, British accent, formal and refined speaking style",
+)
+
+# Southern US accent
+wavs, sr = model.generate_voice_design(
+    text="Well, y'all come back now, you hear?",
+    language="English",
+    instruct="Female, Southern US accent, warm and hospitable tone",
+)
+```
+
+### Professional Settings
+
+```python
+# News anchor
+wavs, sr = model.generate_voice_design(
+    text="Good evening. Here are tonight's top stories.",
+    language="English",
+    instruct="Male, professional news anchor voice, clear articulation, authoritative but approachable, medium paced",
+)
+
+# Customer service
+wavs, sr = model.generate_voice_design(
+    text="Thank you for calling. How may I assist you today?",
+    language="English",
+    instruct="Female, customer service representative, friendly and helpful tone, clear speech",
+)
+```
+
+## Batch Generation
+
+Process multiple voice designs efficiently:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+wavs, sr = model.generate_voice_design(
+    text=[
+        "哥哥，你回来啦，人家等了你好久好久了，要抱抱！",
+        "It's in the top drawer... wait, it's empty? No way, that's impossible! I'm sure I put it there!"
+    ],
+    language=["Chinese", "English"],
+    instruct=[
+        "体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果。",
+        "Speak in an incredulous tone, but with a hint of panic beginning to creep into your voice."
+    ]
+)
+
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+## Voice Design Then Clone
+
+A powerful workflow is to:
+1. Design a voice using VoiceDesign
+2. Create a reusable clone prompt from that voice
+3. Use the clone prompt for consistent generation
+
+This is perfect for creating consistent character voices:
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+# Step 1: Create reference audio with VoiceDesign
+design_model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+ref_text = "H-hey! You dropped your... uh... calculus notebook? I mean, I think it's yours? Maybe?"
+ref_instruct = "Male, 17 years old, tenor range, gaining confidence - deeper breath support now, though vowels still tighten when nervous"
+
+ref_wavs, sr = design_model.generate_voice_design(
+    text=ref_text,
+    language="English",
+    instruct=ref_instruct
+)
+
+sf.write("character_reference.wav", ref_wavs[0], sr)
+
+# Step 2: Build a reusable clone prompt
+clone_model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+voice_clone_prompt = clone_model.create_voice_clone_prompt(
+    ref_audio=(ref_wavs[0], sr),
+    ref_text=ref_text,
+)
+
+# Step 3: Use the clone prompt for new content
+sentences = [
+    "No problem! I actually... kinda finished those already? If you want to compare answers or something...",
+    "What? No! I mean yes but not like... I just think you're... your titration technique is really precise!",
+]
+
+for i, sentence in enumerate(sentences):
+    wavs, sr = clone_model.generate_voice_clone(
+        text=sentence,
+        language="English",
+        voice_clone_prompt=voice_clone_prompt,
+    )
+    sf.write(f"character_line_{i}.wav", wavs[0], sr)
+```
+
+## Generation Parameters
+
+Fine-tune the generation process:
+
+```python
+wavs, sr = model.generate_voice_design(
+    text="Your text here",
+    language="English",
+    instruct="Your voice description",
+    # Optional parameters
+    max_new_tokens=2048,         # Maximum length
+    temperature=0.9,             # Randomness (higher = more variation)
+    top_k=50,                    # Top-k sampling
+    top_p=1.0,                   # Nucleus sampling
+    repetition_penalty=1.05,     # Reduce repetition
+    non_streaming_mode=True,     # Use non-streaming generation
+)
+```
+
+## Complete Example
+
+Here's the official example from the repository:
+
+```python examples/test_model_12hz_voice_design.py
+import time
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+def main():
+    device = "cuda:0"
+    MODEL_PATH = "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign/"
+
+    tts = Qwen3TTSModel.from_pretrained(
+        MODEL_PATH,
+        device_map=device,
+        dtype=torch.bfloat16,
+        attn_implementation="flash_attention_2",
+    )
+
+    # Single inference
+    torch.cuda.synchronize()
+    t0 = time.time()
+
+    wavs, sr = tts.generate_voice_design(
+        text="哥哥，你回来啦，人家等了你好久好久了，要抱抱！",
+        language="Chinese",
+        instruct="体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果。",
+    )
+
+    torch.cuda.synchronize()
+    t1 = time.time()
+    print(f"[VoiceDesign Single] time: {t1 - t0:.3f}s")
+
+    sf.write("qwen3_tts_test_voice_design_single.wav", wavs[0], sr)
+
+    # Batch inference
+    texts = [
+        "哥哥，你回来啦，人家等了你好久好久了，要抱抱！",
+        "It's in the top drawer... wait, it's empty? No way, that's impossible! I'm sure I put it there!"
+    ]
+    languages = ["Chinese", "English"]
+    instructs = [
+        "体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果。",
+        "Speak in an incredulous tone, but with a hint of panic beginning to creep into your voice."
+    ]
+
+    torch.cuda.synchronize()
+    t0 = time.time()
+
+    wavs, sr = tts.generate_voice_design(
+        text=texts,
+        language=languages,
+        instruct=instructs,
+        max_new_tokens=2048,
+    )
+
+    torch.cuda.synchronize()
+    t1 = time.time()
+    print(f"[VoiceDesign Batch] time: {t1 - t0:.3f}s")
+
+    for i, w in enumerate(wavs):
+        sf.write(f"qwen3_tts_test_voice_design_batch_{i}.wav", w, sr)
+
+if __name__ == "__main__":
+    main()
+```
+
+## Tips for Better Results
+
+<AccordionGroup>
+  <Accordion title="Be specific and detailed">
+    More detailed descriptions produce better results. Instead of "young voice", try "female, 22 years old, bright and energetic tone with clear articulation".
+  </Accordion>
+
+  <Accordion title="Combine multiple attributes">
+    You can combine age, gender, emotion, accent, speaking style, and other characteristics in one description.
+  </Accordion>
+
+  <Accordion title="Use emotional context">
+    Describe not just how the voice sounds, but the emotional state: "anxious and speaking quickly" or "calm and reassuring".
+  </Accordion>
+
+  <Accordion title="Specify prosody">
+    Include details about rhythm, pace, intonation: "speaking slowly with rising intonation at the end of sentences".
+  </Accordion>
+</AccordionGroup>
+
+## Next Steps
+
+- Learn about [Voice Cloning](/guides/voice-cloning) to replicate existing voices
+- See [Custom Voice](/guides/custom-voice) for using predefined premium speakers
+- Explore [Batch Processing](/guides/batch-processing) for efficient generation

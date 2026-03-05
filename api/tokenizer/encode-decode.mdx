@@ -1,0 +1,321 @@
+---
+title: Encode & Decode Methods
+description: Convert audio to discrete codes and back to waveforms
+---
+
+## encode()
+
+Batch-encode audio into discrete codes and conditioning features.
+
+```python
+def encode(
+    self,
+    audios: AudioInput,
+    sr: Optional[int] = None,
+    return_dict: bool = True,
+)
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:208-257`
+</Note>
+
+### Parameters
+
+<ParamField path="audios" type="AudioInput" required>
+  Audio input in any of these formats:
+  
+  - **Single file path** (str): `"audio.wav"`
+  - **Single URL** (str): `"https://example.com/audio.wav"`
+  - **Single base64** (str): `"data:audio/wav;base64,..."` or raw base64
+  - **Single numpy array** (np.ndarray): 1-D float32 waveform (requires `sr`)
+  - **List of paths/URLs/base64** (List[str]): `["audio1.wav", "audio2.wav"]`
+  - **List of numpy arrays** (List[np.ndarray]): `[waveform1, waveform2]` (requires `sr`)
+</ParamField>
+
+<ParamField path="sr" type="Optional[int]" default="None">
+  Original sampling rate in Hz for numpy waveform input.
+  
+  <Warning>
+  **Required** when `audios` is `np.ndarray` or `List[np.ndarray]`.
+  </Warning>
+</ParamField>
+
+<ParamField path="return_dict" type="bool" default="True">
+  If `True`, returns a `ModelOutput` object. If `False`, returns raw tuple.
+</ParamField>
+
+### Returns
+
+#### 25Hz Tokenizer Output
+
+<ResponseField name="audio_codes" type="List[torch.LongTensor]">
+  List of discrete code sequences. Each tensor has shape `(codes_len,)`.
+</ResponseField>
+
+<ResponseField name="xvectors" type="List[torch.FloatTensor]">
+  List of speaker embeddings. Each tensor has shape `(xvector_dim,)`.
+</ResponseField>
+
+<ResponseField name="ref_mels" type="List[torch.FloatTensor]">
+  List of reference mel-spectrograms. Each tensor has shape `(mel_len, mel_dim)`.
+</ResponseField>
+
+#### 12Hz Tokenizer Output
+
+<ResponseField name="audio_codes" type="List[torch.LongTensor]">
+  List of multi-quantizer code sequences. Each tensor has shape `(codes_len, num_quantizers)`.
+</ResponseField>
+
+### Examples
+
+#### Single File Path
+
+```python examples/test_tokenizer_12hz.py
+from qwen_tts import Qwen3TTSTokenizer
+import soundfile as sf
+
+audio_url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/tokenizer_demo_1.wav"
+
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+    device_map="cuda:0"
+)
+
+# Encode single audio
+enc = tokenizer.encode(audio_url)
+wavs, out_sr = tokenizer.decode(enc)
+sf.write("decoded_single.wav", wavs[0], out_sr)
+```
+
+#### Batch of File Paths
+
+```python examples/test_tokenizer_12hz.py
+audio_1 = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/tokenizer_demo_1.wav"
+audio_2 = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/tokenizer_demo_2.wav"
+
+# Encode batch
+enc_batch = tokenizer.encode([audio_1, audio_2])
+wavs_batch, out_sr = tokenizer.decode(enc_batch)
+
+for i, wav in enumerate(wavs_batch):
+    sf.write(f"decoded_batch_{i}.wav", wav, out_sr)
+```
+
+#### NumPy Array Input
+
+```python examples/test_tokenizer_12hz.py
+import requests
+import io
+import soundfile as sf
+
+# Load audio as numpy array
+data = requests.get(audio_url, timeout=30).content
+y, sr = sf.read(io.BytesIO(data))
+
+# Encode numpy array (must pass sr)
+enc_numpy = tokenizer.encode(y, sr=sr)
+wavs_numpy, out_sr = tokenizer.decode(enc_numpy)
+sf.write("decoded_numpy.wav", wavs_numpy[0], out_sr)
+```
+
+<Tip>
+The tokenizer automatically resamples all inputs to the model's expected sample rate.
+</Tip>
+
+## decode()
+
+Decode discrete codes back to audio waveforms.
+
+```python
+def decode(
+    self,
+    encoded,
+) -> Tuple[List[np.ndarray], int]
+```
+
+<Note>
+Defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:259-365`
+</Note>
+
+### Parameters
+
+<ParamField path="encoded" type="Any" required>
+  Encoded audio data in one of these formats:
+  
+  1. **ModelOutput from encode()** (recommended): Pass the output directly
+  2. **Single dict**: For custom pipelines
+     - 25Hz: `{"audio_codes": codes, "xvectors": xvec, "ref_mels": mels}`
+     - 12Hz: `{"audio_codes": codes}`
+  3. **List of dicts**: For batch decoding
+     - Values can be torch tensors or numpy arrays
+</ParamField>
+
+### Returns
+
+<ResponseField name="wavs" type="List[np.ndarray]">
+  List of decoded waveforms. Each array is 1-D float32.
+</ResponseField>
+
+<ResponseField name="sample_rate" type="int">
+  Output sample rate in Hz (from model configuration).
+</ResponseField>
+
+### Examples
+
+#### Direct Decode from encode()
+
+```python examples/test_tokenizer_12hz.py
+# Recommended: Pass encode output directly
+enc = tokenizer.encode(audio_url)
+wavs, sr = tokenizer.decode(enc)
+
+sf.write("decoded.wav", wavs[0], sr)
+```
+
+#### Decode from Dict (12Hz)
+
+```python examples/test_tokenizer_12hz.py
+# Encode batch first
+enc_batch = tokenizer.encode([audio_1, audio_2])
+
+# Decode single sample as dict
+dict_input = {"audio_codes": enc_batch.audio_codes[0]}
+wavs_dict, sr = tokenizer.decode(dict_input)
+sf.write("decoded_dict.wav", wavs_dict[0], sr)
+```
+
+#### Decode from List of Dicts (12Hz)
+
+```python examples/test_tokenizer_12hz.py
+# Create list of dicts from batch encoding
+list_dict_input = [
+    {"audio_codes": c} for c in enc_batch.audio_codes
+]
+wavs_list, sr = tokenizer.decode(list_dict_input)
+
+for i, wav in enumerate(wavs_list):
+    sf.write(f"decoded_{i}.wav", wav, sr)
+```
+
+#### Decode with NumPy Arrays (12Hz)
+
+```python examples/test_tokenizer_12hz.py
+# Convert codes to numpy for serialization
+list_dict_numpy = [
+    {"audio_codes": c.cpu().numpy()}
+    for c in enc_batch.audio_codes
+]
+wavs_numpy, sr = tokenizer.decode(list_dict_numpy)
+
+for i, wav in enumerate(wavs_numpy):
+    sf.write(f"decoded_numpy_{i}.wav", wav, sr)
+```
+
+### 25Hz vs 12Hz Decoding
+
+<CodeGroup>
+
+```python 25Hz
+# 25Hz requires all three components
+enc_25hz = tokenizer_25hz.encode(audio)
+
+# Option 1: Direct decode
+wavs, sr = tokenizer_25hz.decode(enc_25hz)
+
+# Option 2: Manual dict
+dict_25hz = {
+    "audio_codes": enc_25hz.audio_codes[0],
+    "xvectors": enc_25hz.xvectors[0],
+    "ref_mels": enc_25hz.ref_mels[0],
+}
+wavs, sr = tokenizer_25hz.decode(dict_25hz)
+```
+
+```python 12Hz
+# 12Hz only requires audio_codes
+enc_12hz = tokenizer_12hz.encode(audio)
+
+# Option 1: Direct decode
+wavs, sr = tokenizer_12hz.decode(enc_12hz)
+
+# Option 2: Manual dict
+dict_12hz = {
+    "audio_codes": enc_12hz.audio_codes[0],
+}
+wavs, sr = tokenizer_12hz.decode(dict_12hz)
+```
+
+</CodeGroup>
+
+<Warning>
+**25Hz tokenizer:** `decode()` requires `xvectors` and `ref_mels` in addition to `audio_codes`. Missing these will raise a `ValueError`.
+</Warning>
+
+## Input Format Details
+
+The `AudioInput` type (defined in `qwen_tts/inference/qwen3_tts_tokenizer.py:36-41`) supports:
+
+```python
+AudioInput = Union[
+    str,              # WAV path, URL, or base64 string
+    np.ndarray,       # 1-D float array (requires sr parameter)
+    List[str],        # Batch of paths/URLs/base64
+    List[np.ndarray], # Batch of arrays (requires sr parameter)
+]
+```
+
+### Supported String Formats
+
+<AccordionGroup>
+  <Accordion title="File Paths">
+    Local filesystem paths to audio files:
+    ```python
+    tokenizer.encode("path/to/audio.wav")
+    tokenizer.encode(["audio1.wav", "audio2.wav"])
+    ```
+  </Accordion>
+
+  <Accordion title="HTTP/HTTPS URLs">
+    Remote audio URLs (detected by scheme and netloc):
+    ```python
+    tokenizer.encode("https://example.com/audio.wav")
+    tokenizer.encode("http://server.com/sounds/voice.wav")
+    ```
+    
+    <Note>
+    URL detection logic in `qwen_tts/inference/qwen3_tts_tokenizer.py:109-114`
+    </Note>
+  </Accordion>
+
+  <Accordion title="Base64 Strings">
+    Base64-encoded audio with or without data URL prefix:
+    ```python
+    # With data URL prefix
+    tokenizer.encode("data:audio/wav;base64,UklGRiQAAABXQVZF...")
+    
+    # Raw base64 (detected if > 256 chars and no path separators)
+    tokenizer.encode("UklGRiQAAABXQVZFZm10IBAAAAABAAEA...")
+    ```
+    
+    <Note>
+    Base64 detection heuristics in `qwen_tts/inference/qwen3_tts_tokenizer.py:101-107`
+    </Note>
+  </Accordion>
+</AccordionGroup>
+
+### NumPy Array Requirements
+
+<Warning>
+When using numpy arrays, you **must** provide the `sr` parameter:
+
+```python
+# Correct
+enc = tokenizer.encode(waveform, sr=22050)
+
+# Wrong - raises ValueError
+enc = tokenizer.encode(waveform)  # Missing sr!
+```
+</Warning>
+
+Multi-channel arrays are automatically converted to mono by averaging channels (`qwen_tts/inference/qwen3_tts_tokenizer.py:201-202`).

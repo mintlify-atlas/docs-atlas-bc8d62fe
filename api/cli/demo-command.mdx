@@ -1,0 +1,212 @@
+---
+title: "qwen-tts-demo"
+description: "Launch a Gradio web UI demo for Qwen3-TTS models"
+---
+
+## Overview
+
+The `qwen-tts-demo` command launches an interactive Gradio web interface for testing and using Qwen3-TTS models. It supports all three model types: CustomVoice, VoiceDesign, and Base (voice cloning).
+
+## Installation
+
+The command is automatically available after installing the `qwen-tts` package:
+
+```bash
+pip install qwen-tts
+```
+
+## Basic Usage
+
+```bash
+qwen-tts-demo MODEL_PATH [OPTIONS]
+```
+
+### Quick Start Examples
+
+```bash
+# CustomVoice model
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice --ip 0.0.0.0 --port 8000
+
+# VoiceDesign model
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign --ip 0.0.0.0 --port 8000
+
+# Base model (voice cloning)
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base --ip 0.0.0.0 --port 8000
+```
+
+After launching, open `http://<your-ip>:8000` in your browser, or access via port forwarding in tools like VS Code.
+
+## Command Options
+
+### Model Checkpoint
+
+<ParamField path="checkpoint" type="string" required>
+  Model checkpoint path or HuggingFace repo ID (positional argument)
+  
+  Can also be specified with `-c` or `--checkpoint` flag.
+  
+  **Examples:**
+  - `Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice`
+  - `./local/path/to/model`
+</ParamField>
+
+### Model Loading Options
+
+<ParamField path="--device" type="string" default="cuda:0">
+  Device for model inference
+  
+  **Options:** `cpu`, `cuda`, `cuda:0`, `cuda:1`, etc.
+</ParamField>
+
+<ParamField path="--dtype" type="string" default="bfloat16">
+  Torch dtype for loading the model
+  
+  **Choices:** `bfloat16`, `bf16`, `float16`, `fp16`, `float32`, `fp32`
+</ParamField>
+
+<ParamField path="--flash-attn / --no-flash-attn" type="boolean" default="true">
+  Enable or disable FlashAttention-2 for efficient memory usage
+  
+  FlashAttention-2 is recommended for better performance. Requires compatible hardware.
+</ParamField>
+
+### Server Configuration
+
+<ParamField path="--ip" type="string" default="0.0.0.0">
+  Server bind IP address for Gradio
+  
+  Use `0.0.0.0` to allow external connections, or `127.0.0.1` for local only.
+</ParamField>
+
+<ParamField path="--port" type="integer" default="8000">
+  Server port for Gradio
+</ParamField>
+
+<ParamField path="--share / --no-share" type="boolean" default="false">
+  Create a public Gradio link for sharing
+  
+  When enabled, generates a temporary public URL.
+</ParamField>
+
+<ParamField path="--concurrency" type="integer" default="16">
+  Gradio queue concurrency limit
+</ParamField>
+
+### HTTPS/SSL Options
+
+<ParamField path="--ssl-certfile" type="string">
+  Path to SSL certificate file for HTTPS (optional)
+  
+  Required for secure connections and browser microphone access in Base model.
+</ParamField>
+
+<ParamField path="--ssl-keyfile" type="string">
+  Path to SSL private key file for HTTPS (optional)
+</ParamField>
+
+<ParamField path="--ssl-verify / --no-ssl-verify" type="boolean" default="true">
+  Whether to verify SSL certificate
+  
+  Use `--no-ssl-verify` for self-signed certificates.
+</ParamField>
+
+### Generation Parameters
+
+<ParamField path="--max-new-tokens" type="integer">
+  Maximum new tokens for generation (optional)
+</ParamField>
+
+<ParamField path="--temperature" type="float">
+  Sampling temperature (optional)
+</ParamField>
+
+<ParamField path="--top-k" type="integer">
+  Top-k sampling (optional)
+</ParamField>
+
+<ParamField path="--top-p" type="float">
+  Top-p sampling (optional)
+</ParamField>
+
+<ParamField path="--repetition-penalty" type="float">
+  Repetition penalty (optional)
+</ParamField>
+
+<ParamField path="--subtalker-top-k" type="integer">
+  Subtalker top-k (optional, only for tokenizer v2)
+</ParamField>
+
+<ParamField path="--subtalker-top-p" type="float">
+  Subtalker top-p (optional, only for tokenizer v2)
+</ParamField>
+
+<ParamField path="--subtalker-temperature" type="float">
+  Subtalker temperature (optional, only for tokenizer v2)
+</ParamField>
+
+## HTTPS Setup for Base Model
+
+For Base model deployments, HTTPS is recommended to avoid browser microphone permission issues:
+
+### Generate Self-Signed Certificate
+
+```bash
+openssl req -x509 -newkey rsa:2048 \
+  -keyout key.pem -out cert.pem \
+  -days 365 -nodes \
+  -subj "/CN=localhost"
+```
+
+### Launch with HTTPS
+
+```bash
+qwen-tts-demo Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+  --ip 0.0.0.0 --port 8000 \
+  --ssl-certfile cert.pem \
+  --ssl-keyfile key.pem \
+  --no-ssl-verify
+```
+
+Then open `https://<your-ip>:8000` in your browser.
+
+<Note>
+  Your browser may show a security warning for self-signed certificates. This is expected. For production deployments, use a real certificate from a trusted Certificate Authority.
+</Note>
+
+## Model-Specific Features
+
+### CustomVoice Demo
+
+Provides interface for:
+- Text input with language selection
+- Speaker selection (9 premium voices)
+- Optional instruction control (e.g., "Say it in a very angry tone")
+
+### VoiceDesign Demo
+
+Provides interface for:
+- Text input with language selection
+- Natural language voice design instructions
+- Dynamic voice generation based on descriptions
+
+### Base Model Demo
+
+Provides two tabs:
+
+1. **Clone & Generate**: Upload reference audio with transcript, then synthesize new text
+2. **Save/Load Voice**: Save voice clones as reusable prompt files for consistent character voices
+
+## Help Command
+
+View all available options:
+
+```bash
+qwen-tts-demo --help
+```
+
+## Related
+
+- [Model API Reference](/api/model/overview)
+- [CustomVoice Model Guide](/guides/custom-voice)
+- [VoiceDesign Guide](/guides/voice-design)
+- [Voice Cloning Guide](/guides/voice-cloning)

@@ -1,0 +1,381 @@
+---
+title: Voice Clone Prompt
+description: Build and manage voice clone prompts for efficient Base model inference
+---
+
+## Overview
+
+The voice cloning workflow involves extracting features from reference audio and reusing them for multiple generations. The `create_voice_clone_prompt()` method and `VoiceClonePromptItem` dataclass provide this functionality.
+
+**Key benefits:**
+- Extract voice features once, generate many times
+- Avoid redundant audio processing
+- Enable batch voice cloning with different voices
+
+## VoiceClonePromptItem
+
+```python
+@dataclass
+class VoiceClonePromptItem:
+    ref_code: Optional[torch.Tensor]
+    ref_spk_embedding: torch.Tensor
+    x_vector_only_mode: bool
+    icl_mode: bool
+    ref_text: Optional[str] = None
+```
+
+Container for one sample's voice-clone prompt information that can be fed to the model.
+
+Fields are aligned with `Qwen3TTSForConditionalGeneration.generate(..., voice_clone_prompt=...)`.
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:40-52`
+
+### Fields
+
+<ResponseField name="ref_code" type="Optional[torch.Tensor]">
+  Reference audio codes extracted by the speech tokenizer.
+  
+  - Shape: `(T, Q)` or `(T,)` depending on tokenizer (25Hz/12Hz)
+  - `None` when `x_vector_only_mode=True`
+</ResponseField>
+
+<ResponseField name="ref_spk_embedding" type="torch.Tensor">
+  Speaker embedding vector extracted from reference audio.
+  
+  Shape: `(D,)` where D is the embedding dimension.
+</ResponseField>
+
+<ResponseField name="x_vector_only_mode" type="bool">
+  Whether to use speaker embedding only (ignores `ref_code` and `ref_text`).
+  
+  - `True`: X-vector only mode - only speaker embedding is used
+  - `False`: ICL mode - uses both embedding and reference codes/text
+</ResponseField>
+
+<ResponseField name="icl_mode" type="bool">
+  Whether ICL (In-Context Learning) mode is enabled.
+  
+  Always the inverse of `x_vector_only_mode`:
+  - `True` when `x_vector_only_mode=False`
+  - `False` when `x_vector_only_mode=True`
+</ResponseField>
+
+<ResponseField name="ref_text" type="Optional[str]">
+  Transcription of the reference audio.
+  
+  - Required when `icl_mode=True` (x_vector_only_mode=False)
+  - Ignored when `x_vector_only_mode=True`
+</ResponseField>
+
+### Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-Base-2B",
+    device_map="cuda:0"
+)
+
+# Create voice clone prompt
+prompt_items = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    ref_text="This is the reference audio."
+)
+
+# Inspect the prompt item
+item = prompt_items[0]
+print(f"X-vector only: {item.x_vector_only_mode}")  # False
+print(f"ICL mode: {item.icl_mode}")  # True
+print(f"Ref code shape: {item.ref_code.shape}")  # e.g., (125, 8)
+print(f"Embedding shape: {item.ref_spk_embedding.shape}")  # e.g., (512,)
+```
+
+---
+
+## create_voice_clone_prompt
+
+```python
+create_voice_clone_prompt(
+    ref_audio: Union[AudioLike, List[AudioLike]],
+    ref_text: Optional[Union[str, List[Optional[str]]]] = None,
+    x_vector_only_mode: Union[bool, List[bool]] = False
+) -> List[VoiceClonePromptItem]
+```
+
+Build voice-clone prompt items from reference audio (and optionally reference text) using the Base model.
+
+**Model Type**: Base only
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:355-458`
+
+### Modes
+
+#### X-vector Only Mode (`x_vector_only_mode=True`)
+
+- Only speaker embedding is used to clone voice
+- `ref_text` and `ref_code` are ignored
+- Mutually exclusive with ICL mode
+- Faster and simpler, but may be less accurate
+
+#### ICL Mode (`x_vector_only_mode=False`)
+
+- ICL (In-Context Learning) mode is enabled automatically
+- Both speaker embedding and reference codes/text are used
+- `ref_text` is **required** in this mode
+- More accurate voice cloning
+
+### Parameters
+
+<ParamField path="ref_audio" type="Union[AudioLike, List[AudioLike]]" required>
+  Reference audio(s) used to extract:
+  - `ref_code` via `model.speech_tokenizer.encode(...)`
+  - `ref_spk_embedding` via `model.extract_speaker_embedding(...)` (resampled to 24kHz)
+  
+  Supported formats:
+  - `str`: Local wav path, URL, or base64 audio string
+  - `(np.ndarray, sr)`: Tuple of waveform + sampling rate
+  - List of the above
+  
+  Example:
+  - `"reference.wav"`
+  - `"https://example.com/audio.wav"`
+  - `(audio_array, 24000)`
+  - `["ref1.wav", "ref2.wav"]`
+</ParamField>
+
+<ParamField path="ref_text" type="Optional[Union[str, List[Optional[str]]]]" default="None">
+  Reference transcript(s) - transcription of the reference audio.
+  
+  **Required** when `x_vector_only_mode=False` (ICL mode).
+  
+  Can be:
+  - Single string (applied to all audio)
+  - List of strings matching the length of `ref_audio`
+  - `None` or empty string when `x_vector_only_mode=True`
+</ParamField>
+
+<ParamField path="x_vector_only_mode" type="Union[bool, List[bool]]" default="False">
+  Whether to use speaker embedding only.
+  
+  - `True`: X-vector only mode (no `ref_text` required)
+  - `False`: ICL mode (requires `ref_text`)
+  
+  Can be:
+  - Single boolean (applied to all audio)
+  - List of booleans matching the length of `ref_audio`
+</ParamField>
+
+### Batch Behavior
+
+- `ref_audio` can be a single item or a list
+- `ref_text` and `x_vector_only_mode` can be scalars or lists
+- If any of them are lists with length > 1, all lists must match in length
+
+### Returns
+
+<ResponseField name="prompt_items" type="List[VoiceClonePromptItem]">
+  List of prompt items that can be passed to `generate_voice_clone(voice_clone_prompt=...)`.
+  
+  Each item contains extracted voice features ready for synthesis.
+</ResponseField>
+
+### Raises
+
+- `ValueError` - If `x_vector_only_mode=False` but `ref_text` is missing
+- `ValueError` - If batch lengths mismatch
+- `ValueError` - If the model is not a Base model
+
+### Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+import soundfile as sf
+
+# Load Base model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-Base-2B",
+    device_map="cuda:0"
+)
+
+# ===== ICL Mode (default) =====
+# Create prompt with reference text
+prompt = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    ref_text="This is the reference audio transcription."
+)
+
+# Reuse prompt for multiple generations
+for text in ["Hello!", "How are you?", "Goodbye!"]:
+    wavs, sr = model.generate_voice_clone(
+        text=text,
+        voice_clone_prompt=prompt,
+        language="English"
+    )
+    # Process wavs...
+
+# ===== X-vector Only Mode =====
+# Create prompt without reference text
+prompt_xvec = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    x_vector_only_mode=True  # ref_text not required
+)
+
+wavs, sr = model.generate_voice_clone(
+    text="Quick test.",
+    voice_clone_prompt=prompt_xvec,
+    language="English"
+)
+
+# ===== Batch Processing =====
+# Create prompts for multiple voices at once
+prompts = model.create_voice_clone_prompt(
+    ref_audio=["voice1.wav", "voice2.wav", "voice3.wav"],
+    ref_text=[
+        "First voice reference.",
+        "Second voice reference.",
+        "Third voice reference."
+    ]
+)
+
+# Generate with different voices in batch
+wavs, sr = model.generate_voice_clone(
+    text=["Hello from voice 1", "Hello from voice 2", "Hello from voice 3"],
+    voice_clone_prompt=prompts,
+    language="English"
+)
+
+# ===== Mixed Modes =====
+# Use different modes for different samples
+prompts_mixed = model.create_voice_clone_prompt(
+    ref_audio=["ref1.wav", "ref2.wav"],
+    ref_text=["Reference 1", None],  # Only needed for ICL mode
+    x_vector_only_mode=[False, True]  # ICL for first, X-vec for second
+)
+```
+
+## Audio Input Formats
+
+Both `create_voice_clone_prompt()` and `generate_voice_clone()` support flexible audio input:
+
+### Local File Path
+
+```python
+prompt = model.create_voice_clone_prompt(
+    ref_audio="/path/to/reference.wav",
+    ref_text="Reference text"
+)
+```
+
+### URL
+
+```python
+prompt = model.create_voice_clone_prompt(
+    ref_audio="https://example.com/audio.wav",
+    ref_text="Reference text"
+)
+```
+
+### Base64
+
+```python
+import base64
+
+# Read audio file
+with open("reference.wav", "rb") as f:
+    audio_bytes = f.read()
+
+# Convert to base64
+audio_b64 = base64.b64encode(audio_bytes).decode()
+
+prompt = model.create_voice_clone_prompt(
+    ref_audio=audio_b64,
+    ref_text="Reference text"
+)
+
+# Or with data URI
+audio_uri = f"data:audio/wav;base64,{audio_b64}"
+prompt = model.create_voice_clone_prompt(
+    ref_audio=audio_uri,
+    ref_text="Reference text"
+)
+```
+
+### NumPy Array
+
+```python
+import numpy as np
+import librosa
+
+# Load audio as numpy array
+audio, sr = librosa.load("reference.wav", sr=None)
+
+# Pass as tuple (audio, sample_rate)
+prompt = model.create_voice_clone_prompt(
+    ref_audio=(audio, sr),
+    ref_text="Reference text"
+)
+```
+
+## Best Practices
+
+### 1. Reuse Prompts
+
+Create prompts once and reuse them for multiple generations:
+
+```python
+# ✅ Efficient - extract once, generate many times
+prompt = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    ref_text="Reference"
+)
+
+for i, text in enumerate(texts):
+    wavs, sr = model.generate_voice_clone(
+        text=text,
+        voice_clone_prompt=prompt,  # Reuse
+        language="English"
+    )
+    sf.write(f"output_{i}.wav", wavs[0], sr)
+
+# ❌ Inefficient - extracts features every time
+for i, text in enumerate(texts):
+    wavs, sr = model.generate_voice_clone(
+        text=text,
+        ref_audio="reference.wav",  # Re-extracts every time
+        ref_text="Reference",
+        language="English"
+    )
+```
+
+### 2. Choose the Right Mode
+
+- **ICL Mode** (`x_vector_only_mode=False`): Better quality, requires reference text
+- **X-vector Only Mode** (`x_vector_only_mode=True`): Faster, no reference text needed
+
+```python
+# Use ICL mode for best quality
+prompt_icl = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    ref_text="Accurate transcription here",
+    x_vector_only_mode=False  # Default
+)
+
+# Use X-vector mode for speed or when text is unavailable
+prompt_xvec = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    x_vector_only_mode=True
+)
+```
+
+### 3. Reference Audio Quality
+
+- Use clean, high-quality reference audio (minimal background noise)
+- 3-10 seconds of speech is usually sufficient
+- Ensure the reference text exactly matches the audio (for ICL mode)
+
+## See Also
+
+- [generate_voice_clone()](/api/model/generation-methods#generate_voice_clone) - Use prompts for voice cloning
+- [Qwen3TTSModel](/api/model/qwen3tts-model) - Main model class
+- [Voice Cloning Guide](/guides/voice-cloning) - Complete tutorial

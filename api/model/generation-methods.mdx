@@ -1,0 +1,422 @@
+---
+title: Generation Methods
+description: Speech synthesis methods for CustomVoice, VoiceDesign, and Base models
+---
+
+## Overview
+
+The `Qwen3TTSModel` provides three generation methods, each designed for a specific model type:
+
+- **generate_custom_voice()** - For CustomVoice models using predefined speakers
+- **generate_voice_design()** - For VoiceDesign models using natural-language instructions
+- **generate_voice_clone()** - For Base models using reference audio
+
+All methods return the same format: `(wavs: List[np.ndarray], sample_rate: int)`
+
+## generate_custom_voice
+
+```python
+generate_custom_voice(
+    text: Union[str, List[str]],
+    speaker: Union[str, List[str]],
+    language: Union[str, List[str]] = None,
+    instruct: Optional[Union[str, List[str]]] = None,
+    non_streaming_mode: bool = True,
+    **kwargs
+) -> Tuple[List[np.ndarray], int]
+```
+
+Generate speech with the CustomVoice model using a predefined speaker ID, optionally controlled by instruction text.
+
+**Model Type**: CustomVoice only
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:731-839`
+
+### Parameters
+
+<ParamField path="text" type="Union[str, List[str]]" required>
+  Text(s) to synthesize. Can be a single string or a list of strings for batch generation.
+  
+  Example:
+  - `"Hello, world!"`
+  - `["Hello", "Goodbye"]`
+</ParamField>
+
+<ParamField path="speaker" type="Union[str, List[str]]" required>
+  Speaker name(s). Will be validated against `model.get_supported_speakers()` (case-insensitive).
+  
+  Can be a single speaker or a list matching the length of `text`.
+  
+  Example:
+  - `"aurora"`
+  - `["aurora", "nova"]`
+</ParamField>
+
+<ParamField path="language" type="Union[str, List[str]]" default="None">
+  Language(s) for each sample. If `None`, defaults to `"Auto"` for all samples.
+  
+  Can be a single language (applied to all texts) or a list matching the length of `text`.
+  
+  Example:
+  - `"English"`
+  - `["English", "Chinese"]`
+</ParamField>
+
+<ParamField path="instruct" type="Optional[Union[str, List[str]]]" default="None">
+  Optional instruction(s) to control speaking style. If `None`, treated as empty (no instruction).
+  
+  **Note**: Not supported for 0.6B models (will be ignored if provided).
+  
+  Example:
+  - `"Speak with excitement"`
+  - `["", "Speak slowly"]` (empty string = no instruction)
+</ParamField>
+
+<ParamField path="non_streaming_mode" type="bool" default="True">
+  Using non-streaming text input. When set to `False`, simulates streaming text input (does not enable true streaming generation).
+</ParamField>
+
+#### Generation Parameters
+
+<ParamField path="do_sample" type="bool" default="True">
+  Whether to use sampling. Recommended to be set to `True` for most use cases.
+</ParamField>
+
+<ParamField path="top_k" type="int" default="50">
+  Top-k sampling parameter. Only the top `k` most likely tokens are considered.
+</ParamField>
+
+<ParamField path="top_p" type="float" default="1.0">
+  Top-p (nucleus) sampling parameter. Keeps the smallest set of tokens whose cumulative probability exceeds `p`.
+</ParamField>
+
+<ParamField path="temperature" type="float" default="0.9">
+  Sampling temperature. Higher values (e.g., 1.2) make output more random; lower values (e.g., 0.7) make it more deterministic.
+</ParamField>
+
+<ParamField path="repetition_penalty" type="float" default="1.05">
+  Penalty to reduce repeated tokens/codes. Values > 1.0 discourage repetition.
+</ParamField>
+
+<ParamField path="subtalker_dosample" type="bool" default="True">
+  Sampling switch for the sub-talker. Only valid for `qwen3-tts-tokenizer-v2`.
+</ParamField>
+
+<ParamField path="subtalker_top_k" type="int" default="50">
+  Top-k for sub-talker sampling. Only valid for `qwen3-tts-tokenizer-v2`.
+</ParamField>
+
+<ParamField path="subtalker_top_p" type="float" default="1.0">
+  Top-p for sub-talker sampling. Only valid for `qwen3-tts-tokenizer-v2`.
+</ParamField>
+
+<ParamField path="subtalker_temperature" type="float" default="0.9">
+  Temperature for sub-talker sampling. Only valid for `qwen3-tts-tokenizer-v2`.
+</ParamField>
+
+<ParamField path="max_new_tokens" type="int" default="2048">
+  Maximum number of new codec tokens to generate.
+</ParamField>
+
+<ParamField path="**kwargs" type="Any">
+  Any other keyword arguments supported by HuggingFace Transformers `generate()` will be forwarded to the underlying `Qwen3TTSForConditionalGeneration.generate(...)`.
+</ParamField>
+
+### Returns
+
+<ResponseField name="wavs" type="List[np.ndarray]">
+  List of generated waveforms as float32 numpy arrays. One array per input text.
+</ResponseField>
+
+<ResponseField name="sample_rate" type="int">
+  Sample rate of the generated audio (typically 24000 Hz).
+</ResponseField>
+
+### Raises
+
+- `ValueError` - If any speaker/language is unsupported or batch sizes mismatch
+- `ValueError` - If the model is not a CustomVoice model
+
+### Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+import soundfile as sf
+
+# Load CustomVoice model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-CustomVoice-2B",
+    device_map="cuda:0"
+)
+
+# Single generation
+wavs, sr = model.generate_custom_voice(
+    text="Hello, how are you today?",
+    speaker="aurora",
+    language="English"
+)
+
+# Save audio
+sf.write("output.wav", wavs[0], sr)
+
+# Batch generation
+wavs, sr = model.generate_custom_voice(
+    text=["Hello!", "Goodbye!"],
+    speaker="aurora",
+    language="English",
+    temperature=0.8
+)
+
+# With instruction (2B+ models)
+wavs, sr = model.generate_custom_voice(
+    text="Welcome to our service.",
+    speaker="aurora",
+    language="English",
+    instruct="Speak with a professional tone"
+)
+```
+
+---
+
+## generate_voice_design
+
+```python
+generate_voice_design(
+    text: Union[str, List[str]],
+    instruct: Union[str, List[str]],
+    language: Union[str, List[str]] = None,
+    non_streaming_mode: bool = True,
+    **kwargs
+) -> Tuple[List[np.ndarray], int]
+```
+
+Generate speech with the VoiceDesign model using natural-language style instructions.
+
+**Model Type**: VoiceDesign only
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:636-728`
+
+### Parameters
+
+<ParamField path="text" type="Union[str, List[str]]" required>
+  Text(s) to synthesize. Can be a single string or a list of strings for batch generation.
+</ParamField>
+
+<ParamField path="instruct" type="Union[str, List[str]]" required>
+  Instruction(s) describing desired voice/style. Empty string is allowed (treated as no instruction).
+  
+  Example:
+  - `"A professional female voice with a warm tone"`
+  - `"A deep male voice speaking slowly"`
+  - `""` (empty = no instruction)
+</ParamField>
+
+<ParamField path="language" type="Union[str, List[str]]" default="None">
+  Language(s) for each sample. If `None`, defaults to `"Auto"` for all samples.
+  
+  Can be a single language (applied to all texts) or a list matching the length of `text`.
+</ParamField>
+
+<ParamField path="non_streaming_mode" type="bool" default="True">
+  Using non-streaming text input. When set to `False`, simulates streaming text input (does not enable true streaming generation).
+</ParamField>
+
+#### Generation Parameters
+
+Same generation parameters as [`generate_custom_voice()`](#generation-parameters): `do_sample`, `top_k`, `top_p`, `temperature`, `repetition_penalty`, `subtalker_dosample`, `subtalker_top_k`, `subtalker_top_p`, `subtalker_temperature`, `max_new_tokens`, and `**kwargs`.
+
+### Returns
+
+<ResponseField name="wavs" type="List[np.ndarray]">
+  List of generated waveforms as float32 numpy arrays.
+</ResponseField>
+
+<ResponseField name="sample_rate" type="int">
+  Sample rate of the generated audio.
+</ResponseField>
+
+### Raises
+
+- `ValueError` - If batch sizes mismatch or the model is not a VoiceDesign model
+
+### Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+import soundfile as sf
+
+# Load VoiceDesign model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-VoiceDesign-2B",
+    device_map="cuda:0"
+)
+
+# Generate with voice description
+wavs, sr = model.generate_voice_design(
+    text="Welcome to our service.",
+    instruct="A professional female voice with a warm, friendly tone",
+    language="English"
+)
+
+sf.write("welcome.wav", wavs[0], sr)
+
+# Batch generation with different instructions
+wavs, sr = model.generate_voice_design(
+    text=["Hello!", "Goodbye!"],
+    instruct=[
+        "An energetic young male voice",
+        "A calm elderly female voice"
+    ],
+    language="English"
+)
+```
+
+---
+
+## generate_voice_clone
+
+```python
+generate_voice_clone(
+    text: Union[str, List[str]],
+    language: Union[str, List[str]] = None,
+    ref_audio: Optional[Union[AudioLike, List[AudioLike]]] = None,
+    ref_text: Optional[Union[str, List[Optional[str]]]] = None,
+    x_vector_only_mode: Union[bool, List[bool]] = False,
+    voice_clone_prompt: Optional[Union[Dict[str, Any], List[VoiceClonePromptItem]]] = None,
+    non_streaming_mode: bool = False,
+    **kwargs
+) -> Tuple[List[np.ndarray], int]
+```
+
+Voice clone speech using the Base model.
+
+You can provide either:
+- `(ref_audio, ref_text, x_vector_only_mode)` and let this method build the prompt, OR
+- `voice_clone_prompt` as a list of `VoiceClonePromptItem` returned by `create_voice_clone_prompt()`, OR
+- `voice_clone_prompt` as a dict (advanced usage)
+
+**Model Type**: Base only
+
+**Source**: `qwen_tts/inference/qwen3_tts_model.py:469-633`
+
+### Parameters
+
+<ParamField path="text" type="Union[str, List[str]]" required>
+  Text(s) to synthesize. Can be a single string or a list of strings for batch generation.
+</ParamField>
+
+<ParamField path="language" type="Union[str, List[str]]" default="None">
+  Language(s) for each sample. If `None`, defaults to `"Auto"` for all samples.
+</ParamField>
+
+<ParamField path="ref_audio" type="Optional[Union[AudioLike, List[AudioLike]]]" default="None">
+  Reference audio(s) for prompt building. Required if `voice_clone_prompt` is not provided.
+  
+  Supported formats:
+  - `str`: Local wav path, URL, or base64 audio string
+  - `(np.ndarray, sr)`: Tuple of waveform + sampling rate
+  - List of the above
+  
+  Example:
+  - `"reference.wav"`
+  - `"https://example.com/audio.wav"`
+  - `(audio_array, 24000)`
+  - `["ref1.wav", "ref2.wav"]`
+</ParamField>
+
+<ParamField path="ref_text" type="Optional[Union[str, List[Optional[str]]]]" default="None">
+  Reference text(s) - transcription of the reference audio. Required when `x_vector_only_mode=False` (ICL mode).
+  
+  Example:
+  - `"This is the reference text"`
+  - `["Reference 1", "Reference 2"]`
+</ParamField>
+
+<ParamField path="x_vector_only_mode" type="Union[bool, List[bool]]" default="False">
+  If `True`, only speaker embedding is used (ignores `ref_text`/`ref_code`).
+  
+  If `False`, ICL mode is used automatically (requires `ref_text`).
+  
+  Can be a single boolean or a list matching the batch size.
+</ParamField>
+
+<ParamField path="voice_clone_prompt" type="Optional[Union[Dict[str, Any], List[VoiceClonePromptItem]]]" default="None">
+  List of `VoiceClonePromptItem` from `create_voice_clone_prompt()`, or a dict for advanced usage.
+  
+  If provided, `ref_audio`, `ref_text`, and `x_vector_only_mode` are ignored.
+</ParamField>
+
+<ParamField path="non_streaming_mode" type="bool" default="False">
+  Using non-streaming text input. When set to `False`, simulates streaming text input (does not enable true streaming generation).
+</ParamField>
+
+#### Generation Parameters
+
+Same generation parameters as [`generate_custom_voice()`](#generation-parameters): `do_sample`, `top_k`, `top_p`, `temperature`, `repetition_penalty`, `subtalker_dosample`, `subtalker_top_k`, `subtalker_top_p`, `subtalker_temperature`, `max_new_tokens`, and `**kwargs`.
+
+### Returns
+
+<ResponseField name="wavs" type="List[np.ndarray]">
+  List of generated waveforms as float32 numpy arrays.
+</ResponseField>
+
+<ResponseField name="sample_rate" type="int">
+  Sample rate of the generated audio.
+</ResponseField>
+
+### Raises
+
+- `ValueError` - If batch sizes mismatch or required prompt inputs are missing
+- `ValueError` - If the model is not a Base model
+
+### Example
+
+```python
+from qwen_tts import Qwen3TTSModel
+import soundfile as sf
+
+# Load Base model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen3-TTS-Base-2B",
+    device_map="cuda:0"
+)
+
+# Simple voice cloning (ICL mode)
+wavs, sr = model.generate_voice_clone(
+    text="This is a test of voice cloning.",
+    ref_audio="reference.wav",
+    ref_text="This is the reference audio transcription.",
+    language="English"
+)
+
+sf.write("cloned.wav", wavs[0], sr)
+
+# X-vector only mode (speaker embedding only)
+wavs, sr = model.generate_voice_clone(
+    text="Quick test.",
+    ref_audio="reference.wav",
+    x_vector_only_mode=True,  # ref_text not required
+    language="English"
+)
+
+# Reuse voice prompt (efficient for multiple generations)
+prompt = model.create_voice_clone_prompt(
+    ref_audio="reference.wav",
+    ref_text="Reference transcription"
+)
+
+# Generate multiple times with same voice
+for text in ["Hello", "Goodbye", "Welcome"]:
+    wavs, sr = model.generate_voice_clone(
+        text=text,
+        voice_clone_prompt=prompt,
+        language="English"
+    )
+    # Process wavs...
+```
+
+## See Also
+
+- [Voice Clone Prompt](/api/model/voice-clone-prompt) - Build and reuse voice clone prompts
+- [Qwen3TTSModel](/api/model/qwen3tts-model) - Main model class documentation
+- [Voice Cloning Guide](/guides/voice-cloning) - Complete voice cloning tutorial

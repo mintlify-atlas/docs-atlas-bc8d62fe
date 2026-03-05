@@ -1,0 +1,198 @@
+---
+title: Installation
+description: Set up your environment and install Qwen3-TTS
+---
+
+## Environment Setup
+
+The easiest way to use Qwen3-TTS is to install the `qwen-tts` Python package from PyPI. We recommend using a **fresh, isolated environment** to avoid dependency conflicts with existing packages.
+
+<Note>
+**Recommended**: Python 3.12 for optimal compatibility and performance.
+
+Supported versions: Python 3.9, 3.10, 3.11, 3.12, 3.13 (see pyproject.toml:13-17)
+</Note>
+
+### Create a Clean Environment
+
+Create a new conda environment with Python 3.12:
+
+```bash
+conda create -n qwen3-tts python=3.12 -y
+conda activate qwen3-tts
+```
+
+## Installation Methods
+
+<Tabs>
+  <Tab title="From PyPI (Recommended)">
+    Install the latest stable release from PyPI:
+
+    ```bash
+    pip install -U qwen-tts
+    ```
+
+    This will automatically install all required dependencies:
+    - `transformers==4.57.3`
+    - `accelerate==1.12.0`
+    - `gradio`, `librosa`, `torchaudio`, `soundfile`, `sox`
+    - `onnxruntime`, `einops`
+
+    <Tip>
+    Package information: qwen-tts v0.1.1 (see pyproject.toml:6-7)
+    </Tip>
+  </Tab>
+
+  <Tab title="From Source">
+    Install from source if you want to modify the code or use the latest development version:
+
+    ```bash
+    git clone https://github.com/QwenLM/Qwen3-TTS.git
+    cd Qwen3-TTS
+    pip install -e .
+    ```
+
+    The `-e` flag installs the package in editable mode, allowing you to modify the source code.
+  </Tab>
+</Tabs>
+
+## FlashAttention 2 (Recommended)
+
+We strongly recommend installing FlashAttention 2 to reduce GPU memory usage and improve inference speed.
+
+<Steps>
+  <Step title="Standard Installation">
+    For most systems:
+
+    ```bash
+    pip install -U flash-attn --no-build-isolation
+    ```
+  </Step>
+
+  <Step title="For Limited RAM Systems">
+    If your machine has **less than 96GB of RAM** and many CPU cores:
+
+    ```bash
+    MAX_JOBS=4 pip install -U flash-attn --no-build-isolation
+    ```
+
+    This limits the number of parallel compilation jobs to prevent out-of-memory errors during installation.
+  </Step>
+</Steps>
+
+<Warning>
+**Hardware Requirements**:
+- FlashAttention 2 requires compatible GPUs (see [FlashAttention repository](https://github.com/Dao-AILab/flash-attention))
+- Can only be used when models are loaded in `torch.float16` or `torch.bfloat16`
+</Warning>
+
+## Model Download
+
+During model loading, weights are **automatically downloaded** based on the model name. However, if your runtime environment doesn't support automatic downloads, you can manually download models to a local directory.
+
+<Tabs>
+  <Tab title="ModelScope (China)">
+    Recommended for users in Mainland China:
+
+    ```bash
+    # Install ModelScope CLI
+    pip install -U modelscope
+
+    # Download tokenizer
+    modelscope download --model Qwen/Qwen3-TTS-Tokenizer-12Hz \
+      --local_dir ./Qwen3-TTS-Tokenizer-12Hz
+
+    # Download TTS models
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local_dir ./Qwen3-TTS-12Hz-1.7B-CustomVoice
+    
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign \
+      --local_dir ./Qwen3-TTS-12Hz-1.7B-VoiceDesign
+    
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+      --local_dir ./Qwen3-TTS-12Hz-1.7B-Base
+    
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+      --local_dir ./Qwen3-TTS-12Hz-0.6B-CustomVoice
+    
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-0.6B-Base \
+      --local_dir ./Qwen3-TTS-12Hz-0.6B-Base
+    ```
+  </Tab>
+
+  <Tab title="Hugging Face">
+    Download from Hugging Face:
+
+    ```bash
+    # Install Hugging Face CLI
+    pip install -U "huggingface_hub[cli]"
+
+    # Download tokenizer
+    huggingface-cli download Qwen/Qwen3-TTS-Tokenizer-12Hz \
+      --local-dir ./Qwen3-TTS-Tokenizer-12Hz
+
+    # Download TTS models
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local-dir ./Qwen3-TTS-12Hz-1.7B-CustomVoice
+    
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign \
+      --local-dir ./Qwen3-TTS-12Hz-1.7B-VoiceDesign
+    
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-1.7B-Base \
+      --local-dir ./Qwen3-TTS-12Hz-1.7B-Base
+    
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice \
+      --local-dir ./Qwen3-TTS-12Hz-0.6B-CustomVoice
+    
+    huggingface-cli download Qwen/Qwen3-TTS-12Hz-0.6B-Base \
+      --local-dir ./Qwen3-TTS-12Hz-0.6B-Base
+    ```
+  </Tab>
+</Tabs>
+
+<Note>
+When using locally downloaded models, pass the local directory path instead of the model name when loading:
+
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "./Qwen3-TTS-12Hz-1.7B-CustomVoice",  # Local path
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+)
+```
+</Note>
+
+## System Requirements
+
+<CardGroup cols={2}>
+  <Card title="Software" icon="code">
+    - Python 3.9 or later (3.12 recommended)
+    - PyTorch with CUDA support
+    - 96GB+ RAM (for FlashAttention 2 compilation)
+  </Card>
+
+  <Card title="Hardware" icon="microchip">
+    - NVIDIA GPU with CUDA support
+    - Compatible with FlashAttention 2 (Ampere or newer recommended)
+    - Sufficient VRAM for model size (varies by model)
+  </Card>
+</CardGroup>
+
+## Verify Installation
+
+Test your installation by importing the package:
+
+```python
+import torch
+from qwen_tts import Qwen3TTSModel
+
+print("Qwen3-TTS installed successfully!")
+print(f"PyTorch version: {torch.__version__}")
+print(f"CUDA available: {torch.cuda.is_available()}")
+```
+
+## Next Steps
+
+<Card title="Quickstart Guide" icon="rocket" href="/quickstart">
+  Generate your first speech with complete working examples
+</Card>

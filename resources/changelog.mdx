@@ -1,0 +1,263 @@
+---
+title: "Changelog"
+description: "Release history and updates for Qwen3-TTS"
+---
+
+## Latest Release
+
+### January 22, 2026 - Qwen3-TTS Initial Release
+
+<img src="https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/qwen3_tts_logo.png" width="400" />
+
+We are excited to announce the initial release of **Qwen3-TTS**, a series of powerful speech generation models developed by the Qwen team.
+
+#### Released Models
+
+All models are based on the **Qwen3-TTS-Tokenizer-12Hz**:
+
+<CardGroup cols={2}>
+  <Card title="Qwen3-TTS-12Hz-1.7B-CustomVoice" icon="microphone">
+    1.7B parameter model with 9 premium speakers and instruction control
+  </Card>
+  
+  <Card title="Qwen3-TTS-12Hz-1.7B-VoiceDesign" icon="wand-magic-sparkles">
+    1.7B parameter model with voice design from natural language descriptions
+  </Card>
+  
+  <Card title="Qwen3-TTS-12Hz-1.7B-Base" icon="clone">
+    1.7B parameter base model with 3-second voice cloning capability
+  </Card>
+  
+  <Card title="Qwen3-TTS-12Hz-0.6B-CustomVoice" icon="microphone">
+    0.6B parameter efficient model with 9 premium speakers
+  </Card>
+  
+  <Card title="Qwen3-TTS-12Hz-0.6B-Base" icon="clone">
+    0.6B parameter efficient base model with voice cloning
+  </Card>
+  
+  <Card title="Qwen3-TTS-Tokenizer-12Hz" icon="code">
+    High-fidelity 12Hz speech tokenizer for encoding and decoding
+  </Card>
+</CardGroup>
+
+#### Key Features
+
+<AccordionGroup>
+  <Accordion title="Powerful Speech Representation" icon="signal">
+    - Self-developed Qwen3-TTS-Tokenizer-12Hz
+    - Efficient acoustic compression and high-dimensional semantic modeling
+    - Preserves paralinguistic information and acoustic environmental features
+    - High-speed, high-fidelity speech reconstruction
+  </Accordion>
+  
+  <Accordion title="Universal End-to-End Architecture" icon="diagram-project">
+    - Discrete multi-codebook LM architecture
+    - Full-information end-to-end speech modeling
+    - Eliminates information bottlenecks of traditional LM+DiT schemes
+    - Enhanced versatility, generation efficiency, and performance ceiling
+  </Accordion>
+  
+  <Accordion title="Extreme Low-Latency Streaming" icon="bolt">
+    - Dual-Track hybrid streaming generation architecture
+    - Single model supports both streaming and non-streaming
+    - First audio packet after single character input
+    - End-to-end synthesis latency as low as **97ms**
+  </Accordion>
+  
+  <Accordion title="Intelligent Voice Control" icon="brain">
+    - Natural language instruction-based voice control
+    - Flexible control over timbre, emotion, and prosody
+    - Deep text semantic understanding
+    - Adaptive tone, rhythm, and emotional expression
+  </Accordion>
+  
+  <Accordion title="Comprehensive Language Support" icon="globe">
+    Supports 10 major languages:
+    - Chinese (Mandarin)
+    - English
+    - Japanese
+    - Korean
+    - German
+    - French
+    - Russian
+    - Portuguese
+    - Spanish
+    - Italian
+    
+    Plus Chinese dialects: Beijing, Sichuan
+  </Accordion>
+</AccordionGroup>
+
+#### Premium Speakers
+
+CustomVoice models include 9 carefully crafted speakers:
+
+| Speaker | Voice Description | Native Language |
+|---------|------------------|----------------|
+| **Vivian** | Bright, slightly edgy young female voice | Chinese |
+| **Serena** | Warm, gentle young female voice | Chinese |
+| **Uncle_Fu** | Seasoned male voice with low, mellow timbre | Chinese |
+| **Dylan** | Youthful Beijing male voice, clear and natural | Chinese (Beijing) |
+| **Eric** | Lively Chengdu male voice, husky brightness | Chinese (Sichuan) |
+| **Ryan** | Dynamic male voice with strong rhythmic drive | English |
+| **Aiden** | Sunny American male voice, clear midrange | English |
+| **Ono_Anna** | Playful Japanese female voice, light and nimble | Japanese |
+| **Sohee** | Warm Korean female voice with rich emotion | Korean |
+
+#### Performance Highlights
+
+- **Best-in-class English synthesis**: WER of 1.24 on Seed-TTS test-en
+- **Competitive Chinese synthesis**: WER of 0.77 on Seed-TTS test-zh
+- **State-of-the-art voice design**: Leading performance on InstructTTSEval
+- **Strong cross-lingual**: Excellent results on language transfer tasks
+- **Multilingual excellence**: Competitive performance across all 10 languages
+
+See the [Benchmarks](/resources/benchmarks) page for detailed results.
+
+#### Resources
+
+<CardGroup cols={2}>
+  <Card title="Technical Paper" icon="file-lines" href="https://arxiv.org/abs/2601.15621">
+    Read the research paper on arXiv
+  </Card>
+  
+  <Card title="Blog Post" icon="blog" href="https://qwen.ai/blog?id=qwen3tts-0115">
+    Detailed introduction and use cases
+  </Card>
+  
+  <Card title="Hugging Face" icon="huggingface" href="https://huggingface.co/collections/Qwen/qwen3-tts">
+    Download models from Hugging Face
+  </Card>
+  
+  <Card title="ModelScope" icon="cube" href="https://modelscope.cn/collections/Qwen/Qwen3-TTS">
+    Download models from ModelScope (CN)
+  </Card>
+  
+  <Card title="GitHub Repository" icon="github" href="https://github.com/QwenLM/Qwen3-TTS">
+    Source code and examples
+  </Card>
+  
+  <Card title="Live Demo (HF)" icon="play" href="https://huggingface.co/spaces/Qwen/Qwen3-TTS">
+    Try Qwen3-TTS in your browser
+  </Card>
+</CardGroup>
+
+#### Installation
+
+```bash
+# Install via PyPI
+pip install qwen-tts
+
+# Or install from source
+git clone https://github.com/QwenLM/Qwen3-TTS.git
+cd Qwen3-TTS
+pip install -e .
+
+# Optional: Install FlashAttention for better performance
+pip install flash-attn --no-build-isolation
+```
+
+#### Quick Start
+
+```python
+import torch
+import soundfile as sf
+from qwen_tts import Qwen3TTSModel
+
+# Load CustomVoice model
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+# Generate speech
+wavs, sr = model.generate_custom_voice(
+    text="Hello! Welcome to Qwen3-TTS.",
+    language="English",
+    speaker="Ryan",
+    instruct="Say it with enthusiasm",
+)
+
+sf.write("output.wav", wavs[0], sr)
+```
+
+#### What's Coming
+
+<Note>
+  Additional models mentioned in the technical report will be released in the near future. Stay tuned!
+</Note>
+
+---
+
+## Version History
+
+### qwen-tts Package
+
+#### v0.1.1 - Current Release
+
+**Package Information:**
+- Python support: 3.9, 3.10, 3.11, 3.12, 3.13
+- License: Apache-2.0
+- Command-line tool: `qwen-tts-demo`
+
+**Dependencies:**
+- transformers 4.57.3
+- accelerate 1.12.0
+- gradio (latest)
+- librosa, torchaudio, soundfile
+- onnxruntime, einops
+
+---
+
+## Related Releases
+
+### DashScope API
+
+Production-ready API access for Qwen3-TTS models:
+
+<CardGroup cols={3}>
+  <Card title="CustomVoice API" icon="microphone" href="https://help.aliyun.com/zh/model-studio/qwen-tts-realtime">
+    Real-time streaming API
+  </Card>
+  
+  <Card title="Voice Clone API" icon="clone" href="https://help.aliyun.com/zh/model-studio/qwen-tts-voice-cloning">
+    Voice cloning API
+  </Card>
+  
+  <Card title="Voice Design API" icon="wand-magic-sparkles" href="https://help.aliyun.com/zh/model-studio/qwen-tts-voice-design">
+    Voice design API
+  </Card>
+</CardGroup>
+
+### vLLM-Omni Support
+
+vLLM officially provides day-0 support for Qwen3-TTS:
+- Optimized inference engine
+- Better throughput and latency
+- Offline inference (online serving coming soon)
+- See [vLLM-Omni documentation](https://docs.vllm.ai/projects/vllm-omni/en/latest/getting_started/quickstart/)
+
+---
+
+## Stay Updated
+
+<CardGroup cols={3}>
+  <Card title="GitHub Releases" icon="tag" href="https://github.com/QwenLM/Qwen3-TTS/releases">
+    Watch for new releases
+  </Card>
+  
+  <Card title="Discord Community" icon="discord" href="https://discord.gg/CV4E9rpNSD">
+    Join discussions
+  </Card>
+  
+  <Card title="WeChat Group" icon="weixin" href="https://github.com/QwenLM/Qwen/blob/main/assets/wechat.png">
+    Chinese community
+  </Card>
+</CardGroup>
+
+<Note>
+  Subscribe to the [GitHub repository](https://github.com/QwenLM/Qwen3-TTS) to get notified about new releases and updates.
+</Note>

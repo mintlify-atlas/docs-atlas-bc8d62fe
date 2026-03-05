@@ -1,0 +1,632 @@
+---
+title: "Benchmarks"
+description: "Performance evaluation of Qwen3-TTS models across multiple benchmarks"
+---
+
+## Evaluation Setup
+
+All models were evaluated with the following configuration:
+- **Dtype:** `torch.bfloat16`
+- **Max new tokens:** 2048
+- **Sampling parameters:** Defaults from checkpoint's `generate_config.json`
+- **Language setting:** 
+  - `language="auto"` for Seed-Test and InstructTTS-Eval
+  - Explicit language for other test sets
+
+## Speech Generation Quality
+
+### Seed-TTS Test Set
+
+Zero-shot speech generation measured by Word Error Rate (WER, ↓ lower is better).
+
+<table>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th>test-zh</th>
+      <th>test-en</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Seed-TTS</td>
+      <td>1.12</td>
+      <td>2.25</td>
+    </tr>
+    <tr>
+      <td>MaskGCT</td>
+      <td>2.27</td>
+      <td>2.62</td>
+    </tr>
+    <tr>
+      <td>E2 TTS</td>
+      <td>1.97</td>
+      <td>2.19</td>
+    </tr>
+    <tr>
+      <td>F5-TTS</td>
+      <td>1.56</td>
+      <td>1.83</td>
+    </tr>
+    <tr>
+      <td>Spark TTS</td>
+      <td>1.20</td>
+      <td>1.98</td>
+    </tr>
+    <tr>
+      <td>Llasa-8B</td>
+      <td>1.59</td>
+      <td>2.97</td>
+    </tr>
+    <tr>
+      <td>KALL-E</td>
+      <td>0.96</td>
+      <td>1.94</td>
+    </tr>
+    <tr>
+      <td>FireRedTTS 2</td>
+      <td>1.14</td>
+      <td>1.95</td>
+    </tr>
+    <tr>
+      <td>CosyVoice 3</td>
+      <td><strong>0.71</strong></td>
+      <td>1.45</td>
+    </tr>
+    <tr>
+      <td>MiniMax-Speech</td>
+      <td>0.83</td>
+      <td>1.65</td>
+    </tr>
+    <tr>
+      <td>Qwen3-TTS-25Hz-0.6B-Base</td>
+      <td>1.18</td>
+      <td>1.64</td>
+    </tr>
+    <tr>
+      <td>Qwen3-TTS-25Hz-1.7B-Base</td>
+      <td>1.10</td>
+      <td>1.49</td>
+    </tr>
+    <tr>
+      <td>Qwen3-TTS-12Hz-0.6B-Base</td>
+      <td>0.92</td>
+      <td>1.32</td>
+    </tr>
+    <tr>
+      <td><strong>Qwen3-TTS-12Hz-1.7B-Base</strong></td>
+      <td>0.77</td>
+      <td><strong>1.24</strong></td>
+    </tr>
+  </tbody>
+</table>
+
+<Note>
+  Qwen3-TTS-12Hz-1.7B-Base achieves **best-in-class performance on English** and competitive results on Chinese.
+</Note>
+
+## Multilingual Performance
+
+Performance across 10 languages. WER (↓) for content consistency, Cosine Similarity (↑) for speaker similarity.
+
+### Content Consistency (WER ↓)
+
+<table>
+  <thead>
+    <tr>
+      <th>Language</th>
+      <th>Qwen3-TTS-25Hz-0.6B</th>
+      <th>Qwen3-TTS-25Hz-1.7B</th>
+      <th>Qwen3-TTS-12Hz-0.6B</th>
+      <th>Qwen3-TTS-12Hz-1.7B</th>
+      <th>MiniMax</th>
+      <th>ElevenLabs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Chinese</td>
+      <td>1.108</td>
+      <td><strong>0.777</strong></td>
+      <td>1.145</td>
+      <td>0.928</td>
+      <td>2.252</td>
+      <td>16.026</td>
+    </tr>
+    <tr>
+      <td>English</td>
+      <td>1.048</td>
+      <td>1.014</td>
+      <td><strong>0.836</strong></td>
+      <td>0.934</td>
+      <td>2.164</td>
+      <td>2.339</td>
+    </tr>
+    <tr>
+      <td>German</td>
+      <td>1.501</td>
+      <td>0.960</td>
+      <td>1.089</td>
+      <td>1.235</td>
+      <td>1.906</td>
+      <td><strong>0.572</strong></td>
+    </tr>
+    <tr>
+      <td>Italian</td>
+      <td>1.169</td>
+      <td>1.105</td>
+      <td>1.534</td>
+      <td><strong>0.948</strong></td>
+      <td>1.543</td>
+      <td>1.743</td>
+    </tr>
+    <tr>
+      <td>Portuguese</td>
+      <td>2.046</td>
+      <td>1.778</td>
+      <td>2.254</td>
+      <td>1.526</td>
+      <td>1.877</td>
+      <td><strong>1.331</strong></td>
+    </tr>
+    <tr>
+      <td>Spanish</td>
+      <td>2.031</td>
+      <td>1.491</td>
+      <td>1.491</td>
+      <td>1.126</td>
+      <td><strong>1.029</strong></td>
+      <td>1.084</td>
+    </tr>
+    <tr>
+      <td>Japanese</td>
+      <td>4.189</td>
+      <td>5.121</td>
+      <td>6.404</td>
+      <td>3.823</td>
+      <td><strong>3.519</strong></td>
+      <td>10.646</td>
+    </tr>
+    <tr>
+      <td>Korean</td>
+      <td>2.852</td>
+      <td>2.631</td>
+      <td><strong>1.741</strong></td>
+      <td>1.755</td>
+      <td>1.747</td>
+      <td>1.865</td>
+    </tr>
+    <tr>
+      <td>French</td>
+      <td>2.852</td>
+      <td><strong>2.631</strong></td>
+      <td>2.931</td>
+      <td>2.858</td>
+      <td>4.099</td>
+      <td>5.216</td>
+    </tr>
+    <tr>
+      <td>Russian</td>
+      <td>5.957</td>
+      <td>4.535</td>
+      <td>4.458</td>
+      <td><strong>3.212</strong></td>
+      <td>4.281</td>
+      <td>3.878</td>
+    </tr>
+  </tbody>
+</table>
+
+### Speaker Similarity (Cosine Similarity ↑)
+
+<table>
+  <thead>
+    <tr>
+      <th>Language</th>
+      <th>Qwen3-TTS-25Hz-0.6B</th>
+      <th>Qwen3-TTS-25Hz-1.7B</th>
+      <th>Qwen3-TTS-12Hz-0.6B</th>
+      <th>Qwen3-TTS-12Hz-1.7B</th>
+      <th>MiniMax</th>
+      <th>ElevenLabs</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Chinese</td>
+      <td>0.797</td>
+      <td>0.796</td>
+      <td><strong>0.811</strong></td>
+      <td>0.799</td>
+      <td>0.780</td>
+      <td>0.677</td>
+    </tr>
+    <tr>
+      <td>English</td>
+      <td>0.811</td>
+      <td>0.815</td>
+      <td><strong>0.829</strong></td>
+      <td>0.775</td>
+      <td>0.756</td>
+      <td>0.613</td>
+    </tr>
+    <tr>
+      <td>German</td>
+      <td>0.749</td>
+      <td>0.737</td>
+      <td>0.769</td>
+      <td><strong>0.775</strong></td>
+      <td>0.733</td>
+      <td>0.614</td>
+    </tr>
+    <tr>
+      <td>Italian</td>
+      <td>0.722</td>
+      <td>0.718</td>
+      <td>0.792</td>
+      <td><strong>0.817</strong></td>
+      <td>0.699</td>
+      <td>0.579</td>
+    </tr>
+    <tr>
+      <td>Portuguese</td>
+      <td>0.790</td>
+      <td>0.783</td>
+      <td>0.794</td>
+      <td><strong>0.817</strong></td>
+      <td>0.805</td>
+      <td>0.711</td>
+    </tr>
+    <tr>
+      <td>Spanish</td>
+      <td>0.732</td>
+      <td>0.731</td>
+      <td>0.812</td>
+      <td><strong>0.814</strong></td>
+      <td>0.762</td>
+      <td>0.615</td>
+    </tr>
+    <tr>
+      <td>Japanese</td>
+      <td><strong>0.810</strong></td>
+      <td>0.807</td>
+      <td>0.798</td>
+      <td>0.788</td>
+      <td>0.776</td>
+      <td>0.738</td>
+    </tr>
+    <tr>
+      <td>Korean</td>
+      <td><strong>0.824</strong></td>
+      <td>0.814</td>
+      <td>0.812</td>
+      <td>0.799</td>
+      <td>0.779</td>
+      <td>0.700</td>
+    </tr>
+    <tr>
+      <td>French</td>
+      <td>0.698</td>
+      <td>0.703</td>
+      <td>0.700</td>
+      <td><strong>0.714</strong></td>
+      <td>0.628</td>
+      <td>0.535</td>
+    </tr>
+    <tr>
+      <td>Russian</td>
+      <td>0.734</td>
+      <td>0.744</td>
+      <td>0.781</td>
+      <td><strong>0.792</strong></td>
+      <td>0.761</td>
+      <td>0.676</td>
+    </tr>
+  </tbody>
+</table>
+
+## Cross-Lingual Synthesis
+
+Performance on cross-lingual tasks (e.g., English speaker speaking Chinese). Mixed Error Rate: WER for English, CER for others (↓).
+
+<table>
+  <thead>
+    <tr>
+      <th>Task</th>
+      <th>Qwen3-TTS-25Hz-1.7B</th>
+      <th>Qwen3-TTS-12Hz-1.7B</th>
+      <th>CosyVoice3</th>
+      <th>CosyVoice2</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>en-to-zh</td>
+      <td>5.66</td>
+      <td><strong>4.77</strong></td>
+      <td>5.09</td>
+      <td>13.5</td>
+    </tr>
+    <tr>
+      <td>ja-to-zh</td>
+      <td>3.92</td>
+      <td>3.43</td>
+      <td><strong>3.05</strong></td>
+      <td>48.1</td>
+    </tr>
+    <tr>
+      <td>ko-to-zh</td>
+      <td>1.14</td>
+      <td>1.08</td>
+      <td><strong>1.06</strong></td>
+      <td>7.70</td>
+    </tr>
+    <tr>
+      <td>zh-to-en</td>
+      <td>2.91</td>
+      <td><strong>2.77</strong></td>
+      <td>2.98</td>
+      <td>6.47</td>
+    </tr>
+    <tr>
+      <td>ja-to-en</td>
+      <td>3.95</td>
+      <td><strong>3.04</strong></td>
+      <td>4.20</td>
+      <td>17.1</td>
+    </tr>
+    <tr>
+      <td>ko-to-en</td>
+      <td>3.48</td>
+      <td><strong>3.09</strong></td>
+      <td>4.19</td>
+      <td>11.2</td>
+    </tr>
+    <tr>
+      <td>zh-to-ja</td>
+      <td>9.29</td>
+      <td>8.40</td>
+      <td><strong>7.08</strong></td>
+      <td>13.1</td>
+    </tr>
+    <tr>
+      <td>en-to-ja</td>
+      <td>7.74</td>
+      <td>7.21</td>
+      <td><strong>6.80</strong></td>
+      <td>14.9</td>
+    </tr>
+    <tr>
+      <td>ko-to-ja</td>
+      <td>4.17</td>
+      <td><strong>3.67</strong></td>
+      <td>3.93</td>
+      <td>5.86</td>
+    </tr>
+    <tr>
+      <td>zh-to-ko</td>
+      <td>8.12</td>
+      <td><strong>4.82</strong></td>
+      <td>14.4</td>
+      <td>24.8</td>
+    </tr>
+    <tr>
+      <td>en-to-ko</td>
+      <td>6.83</td>
+      <td><strong>5.14</strong></td>
+      <td>5.87</td>
+      <td>21.9</td>
+    </tr>
+    <tr>
+      <td>ja-to-ko</td>
+      <td>6.86</td>
+      <td><strong>5.59</strong></td>
+      <td>7.92</td>
+      <td>21.5</td>
+    </tr>
+  </tbody>
+</table>
+
+## Controllable Speech Generation
+
+Performance on InstructTTSEval benchmark. Metrics: APS (Attribute Perception & Synthesis ↑), DSD (Description-Speech Consistency ↑), RP (Response Precision ↑).
+
+### Target Speaker Control
+
+<table>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th colspan="3">InstructTTSEval-ZH</th>
+      <th colspan="3">InstructTTSEval-EN</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th>APS</th>
+      <th>DSD</th>
+      <th>RP</th>
+      <th>APS</th>
+      <th>DSD</th>
+      <th>RP</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Gemini-flash</td>
+      <td>88.2</td>
+      <td><strong>90.9</strong></td>
+      <td><strong>77.3</strong></td>
+      <td><strong>92.3</strong></td>
+      <td><strong>93.8</strong></td>
+      <td><strong>80.1</strong></td>
+    </tr>
+    <tr>
+      <td>Gemini-pro</td>
+      <td><strong>89.0</strong></td>
+      <td>90.1</td>
+      <td>75.5</td>
+      <td>87.6</td>
+      <td>86.0</td>
+      <td>67.2</td>
+    </tr>
+    <tr>
+      <td>Qwen3TTS-25Hz-1.7B-CustomVoice</td>
+      <td>83.1</td>
+      <td>75.0</td>
+      <td>63.0</td>
+      <td>79.0</td>
+      <td>82.8</td>
+      <td>69.3</td>
+    </tr>
+    <tr>
+      <td>Qwen3TTS-12Hz-1.7B-CustomVoice</td>
+      <td>83.0</td>
+      <td>77.8</td>
+      <td>61.2</td>
+      <td>77.3</td>
+      <td>77.1</td>
+      <td>63.7</td>
+    </tr>
+    <tr>
+      <td>GPT-4o-mini-tts</td>
+      <td>54.9</td>
+      <td>52.3</td>
+      <td>46.0</td>
+      <td>76.4</td>
+      <td>74.3</td>
+      <td>54.8</td>
+    </tr>
+  </tbody>
+</table>
+
+### Voice Design
+
+<table>
+  <thead>
+    <tr>
+      <th>Model</th>
+      <th colspan="3">InstructTTSEval-ZH</th>
+      <th colspan="3">InstructTTSEval-EN</th>
+    </tr>
+    <tr>
+      <th></th>
+      <th>APS</th>
+      <th>DSD</th>
+      <th>RP</th>
+      <th>APS</th>
+      <th>DSD</th>
+      <th>RP</th>
+    </tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td><strong>Qwen3TTS-12Hz-1.7B-VD</strong></td>
+      <td><strong>85.2</strong></td>
+      <td><strong>81.1</strong></td>
+      <td><strong>65.1</strong></td>
+      <td>82.9</td>
+      <td><strong>82.4</strong></td>
+      <td><strong>68.4</strong></td>
+    </tr>
+    <tr>
+      <td>Mimo-Audio-7B-Instruct</td>
+      <td>75.7</td>
+      <td>74.3</td>
+      <td>61.5</td>
+      <td>80.6</td>
+      <td>77.6</td>
+      <td>59.5</td>
+    </tr>
+    <tr>
+      <td>VoiceSculptor</td>
+      <td>75.7</td>
+      <td>64.7</td>
+      <td>61.5</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+    </tr>
+    <tr>
+      <td>Hume</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td><strong>83.0</strong></td>
+      <td>75.3</td>
+      <td>54.3</td>
+    </tr>
+    <tr>
+      <td>VoxInstruct</td>
+      <td>47.5</td>
+      <td>52.3</td>
+      <td>42.6</td>
+      <td>54.9</td>
+      <td>57.0</td>
+      <td>39.3</td>
+    </tr>
+    <tr>
+      <td>Parler-tts-mini</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>63.4</td>
+      <td>48.7</td>
+      <td>28.6</td>
+    </tr>
+    <tr>
+      <td>Parler-tts-large</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>60.0</td>
+      <td>45.9</td>
+      <td>31.2</td>
+    </tr>
+    <tr>
+      <td>PromptTTS</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>64.3</td>
+      <td>47.2</td>
+      <td>31.4</td>
+    </tr>
+    <tr>
+      <td>PromptStyle</td>
+      <td>-</td>
+      <td>-</td>
+      <td>-</td>
+      <td>57.4</td>
+      <td>46.4</td>
+      <td>30.9</td>
+    </tr>
+  </tbody>
+</table>
+
+<Note>
+  Qwen3-TTS-12Hz-1.7B-VoiceDesign leads in voice design tasks, demonstrating strong instruction following and voice controllability.
+</Note>
+
+## Key Insights
+
+<CardGroup cols={2}>
+  <Card title="Best-in-class English" icon="trophy">
+    Qwen3-TTS-12Hz-1.7B achieves the lowest WER on English speech generation (1.24)
+  </Card>
+  
+  <Card title="Strong Multilingual" icon="globe">
+    Competitive performance across 10 languages with consistent speaker similarity
+  </Card>
+  
+  <Card title="Cross-lingual Excellence" icon="language">
+    Leading results on English-to-Korean and other cross-lingual tasks
+  </Card>
+  
+  <Card title="Voice Design Leader" icon="wand-magic-sparkles">
+    State-of-the-art controllable speech generation with natural language instructions
+  </Card>
+</CardGroup>
+
+## References
+
+For detailed methodology and citations, see the [technical paper](https://arxiv.org/abs/2601.15621).

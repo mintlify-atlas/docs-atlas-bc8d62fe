@@ -1,0 +1,293 @@
+---
+title: "Code Examples"
+description: "Example scripts demonstrating Qwen3-TTS usage patterns"
+---
+
+## Overview
+
+The Qwen3-TTS repository includes comprehensive example scripts demonstrating various use cases and model types. All examples are available in the [examples/ directory](https://github.com/QwenLM/Qwen3-TTS/tree/main/examples) on GitHub.
+
+## Available Examples
+
+<CardGroup cols={2}>
+  <Card title="CustomVoice Model" icon="microphone" href="https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_model_12hz_custom_voice.py">
+    Test CustomVoice model with 9 premium speakers and instruction control
+  </Card>
+  
+  <Card title="VoiceDesign Model" icon="wand-magic-sparkles" href="https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_model_12hz_voice_design.py">
+    Generate voices from natural language descriptions
+  </Card>
+  
+  <Card title="Base Model (Voice Clone)" icon="copy" href="https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_model_12hz_base.py">
+    3-second voice cloning with reference audio
+  </Card>
+  
+  <Card title="Tokenizer Usage" icon="code" href="https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_tokenizer_12hz.py">
+    Encode and decode audio with Qwen3-TTS-Tokenizer
+  </Card>
+</CardGroup>
+
+## Example Details
+
+### test_model_12hz_custom_voice.py
+
+Demonstrates usage of the CustomVoice model with predefined speakers.
+
+**Features:**
+- Single and batch inference
+- Language selection (Chinese, English, etc.)
+- Speaker selection from 9 premium voices
+- Instruction-based control (tone, emotion, style)
+
+**Key code snippet:**
+```python
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+wavs, sr = model.generate_custom_voice(
+    text="其实我真的有发现，我是一个特别善于观察别人情绪的人。",
+    language="Chinese",
+    speaker="Vivian",
+    instruct="用特别愤怒的语气说",
+)
+```
+
+[View full example →](https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_model_12hz_custom_voice.py)
+
+### test_model_12hz_voice_design.py
+
+Shows how to design custom voices using natural language descriptions.
+
+**Features:**
+- Voice creation from text descriptions
+- Single and batch generation
+- Multilingual voice design
+- Emotional and stylistic control
+
+**Key code snippet:**
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-VoiceDesign",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+wavs, sr = model.generate_voice_design(
+    text="哥哥，你回来啦，人家等了你好久好久了，要抱抱！",
+    language="Chinese",
+    instruct="体现撒娇稚嫩的萝莉女声，音调偏高且起伏明显，营造出黏人、做作又刻意卖萌的听觉效果。",
+)
+```
+
+[View full example →](https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_model_12hz_voice_design.py)
+
+### test_model_12hz_base.py
+
+Comprehensive voice cloning examples with the Base model.
+
+**Features:**
+- Voice cloning from reference audio
+- Single and batch voice cloning
+- Reusable voice clone prompts
+- X-vector only mode
+- Multiple clone modes (ICL and x-vector)
+
+**Key code snippet:**
+```python
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/Qwen3-TTS-12Hz-1.7B-Base",
+    device_map="cuda:0",
+    dtype=torch.bfloat16,
+    attn_implementation="flash_attention_2",
+)
+
+ref_audio = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/clone.wav"
+ref_text = "Okay. Yeah. I resent you. I love you. I respect you..."
+
+wavs, sr = model.generate_voice_clone(
+    text="I am solving the equation: x = [-b ± √(b²-4ac)] / 2a?",
+    language="English",
+    ref_audio=ref_audio,
+    ref_text=ref_text,
+)
+```
+
+[View full example →](https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_model_12hz_base.py)
+
+### test_tokenizer_12hz.py
+
+Demonstrates audio encoding and decoding with the tokenizer.
+
+**Features:**
+- Single and batch audio encoding
+- Audio decoding from codes
+- Multiple input formats (URLs, paths, numpy arrays)
+- Dict and list payload handling
+
+**Key code snippet:**
+```python
+from qwen_tts import Qwen3TTSTokenizer
+
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+    device_map="cuda:0",
+)
+
+# Encode from URL
+audio_url = "https://qianwen-res.oss-cn-beijing.aliyuncs.com/Qwen3-TTS-Repo/tokenizer_demo_1.wav"
+enc = tokenizer.encode(audio_url)
+
+# Decode back to audio
+wavs, sr = tokenizer.decode(enc)
+```
+
+[View full example →](https://github.com/QwenLM/Qwen3-TTS/blob/main/examples/test_tokenizer_12hz.py)
+
+## Common Patterns
+
+### Model Initialization
+
+All examples use a consistent pattern for loading models:
+
+```python
+import torch
+from qwen_tts import Qwen3TTSModel
+
+model = Qwen3TTSModel.from_pretrained(
+    "Qwen/MODEL_NAME",
+    device_map="cuda:0",              # GPU device
+    dtype=torch.bfloat16,             # Recommended dtype
+    attn_implementation="flash_attention_2",  # Optional but recommended
+)
+```
+
+### Batch Processing
+
+All generation methods support batch inference:
+
+```python
+wavs, sr = model.generate_custom_voice(
+    text=["First sentence.", "Second sentence."],
+    language=["English", "English"],
+    speaker=["Ryan", "Aiden"],
+    instruct=["", "Very happy."]
+)
+```
+
+### Saving Output
+
+All examples use `soundfile` for saving audio:
+
+```python
+import soundfile as sf
+
+sf.write("output.wav", wavs[0], sr)
+```
+
+## Running Examples
+
+### Prerequisites
+
+```bash
+pip install qwen-tts
+pip install flash-attn --no-build-isolation  # Optional but recommended
+```
+
+### Clone Repository
+
+```bash
+git clone https://github.com/QwenLM/Qwen3-TTS.git
+cd Qwen3-TTS/examples
+```
+
+### Run Examples
+
+```bash
+# CustomVoice example
+python test_model_12hz_custom_voice.py
+
+# VoiceDesign example
+python test_model_12hz_voice_design.py
+
+# Base model (voice cloning)
+python test_model_12hz_base.py
+
+# Tokenizer example
+python test_tokenizer_12hz.py
+```
+
+<Note>
+  Examples will automatically download model weights on first run. Ensure you have sufficient disk space and a stable internet connection.
+</Note>
+
+## Advanced Usage
+
+For more advanced usage patterns, including:
+- Voice design then clone workflow
+- Reusable voice prompts
+- Custom generation parameters
+- Streaming generation
+
+Refer to the [API Reference](/api/python/model-reference) and [Guides](/guides/getting-started).
+
+## Troubleshooting
+
+<AccordionGroup>
+  <Accordion title="CUDA out of memory">
+    Try reducing batch size or using a smaller model variant (0.6B instead of 1.7B).
+    
+    ```python
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-0.6B-CustomVoice",  # Smaller model
+        device_map="cuda:0",
+        dtype=torch.float16,  # Use fp16 instead of bf16
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="FlashAttention installation fails">
+    FlashAttention is optional but improves performance. If installation fails:
+    
+    ```python
+    # Load without FlashAttention
+    model = Qwen3TTSModel.from_pretrained(
+        "Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        device_map="cuda:0",
+        dtype=torch.bfloat16,
+        # attn_implementation="flash_attention_2",  # Omit this line
+    )
+    ```
+  </Accordion>
+  
+  <Accordion title="Model download is slow">
+    Use ModelScope for faster downloads in Mainland China:
+    
+    ```bash
+    pip install modelscope
+    modelscope download --model Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice \
+      --local_dir ./models/Qwen3-TTS-12Hz-1.7B-CustomVoice
+    ```
+    
+    Then load from local path:
+    ```python
+    model = Qwen3TTSModel.from_pretrained(
+        "./models/Qwen3-TTS-12Hz-1.7B-CustomVoice",
+        ...
+    )
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Related Resources
+
+- [API Reference](/api/python/model-reference)
+- [Getting Started Guide](/guides/getting-started)
+- [Model Selection Guide](/guides/model-selection)
+- [GitHub Repository](https://github.com/QwenLM/Qwen3-TTS)

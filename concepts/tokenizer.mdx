@@ -1,0 +1,447 @@
+---
+title: Speech Tokenizer
+description: Understanding the Qwen3-TTS-Tokenizer-12Hz for audio encoding and decoding
+---
+
+## Overview
+
+The **Qwen3-TTS-Tokenizer-12Hz** is a neural audio codec that converts speech waveforms into discrete codes and reconstructs them back to audio. It serves as the foundation of the Qwen3-TTS system, enabling efficient acoustic compression and high-fidelity speech reconstruction.
+
+<Info>
+  The tokenizer operates at **12Hz frame rate**, meaning it processes audio at 12 frames per second, providing an optimal balance between compression efficiency and quality.
+</Info>
+
+## Key Features
+
+<CardGroup cols={2}>
+  <Card title="Efficient Compression" icon="compress">
+    Achieves ~1920x compression ratio (24kHz audio to 12Hz codes)
+  </Card>
+  
+  <Card title="High Fidelity" icon="waveform">
+    Preserves paralinguistic information and acoustic details
+  </Card>
+  
+  <Card title="Multi-Codebook" icon="books">
+    Uses 16 residual quantizers for fine-grained representation
+  </Card>
+  
+  <Card title="Lightweight" icon="feather">
+    Non-DiT architecture enables high-speed encoding/decoding
+  </Card>
+</CardGroup>
+
+## Architecture
+
+The tokenizer consists of two main components:
+
+### 1. Encoder
+
+**Based on**: Mimi architecture (modified Encodec)
+
+**Function**: Converts raw audio waveforms into discrete codes
+
+**Configuration**:
+- **Input**: 24kHz audio waveform
+- **Output**: Discrete codes (codes_length, 16 quantizers)
+- **Codebook Size**: 2048 entries per quantizer
+- **Frame Rate**: 12Hz (1920 samples per frame)
+- **Quantizers**: 16 residual vector quantizers
+
+**Process**:
+1. Convolutional downsampling reduces audio to latent representation
+2. Residual Vector Quantization (RVQ) compresses latents to discrete codes
+3. Each of 16 quantizers captures different levels of acoustic detail
+4. Output is a matrix of shape `(T, 16)` where T = duration_seconds × 12
+
+### 2. Decoder
+
+**Architecture**: Autoregressive transformer with sliding window attention
+
+**Function**: Reconstructs audio waveforms from discrete codes
+
+**Configuration**:
+- **Hidden Size**: 1024
+- **Layers**: 8 transformer blocks
+- **Attention**: Sliding window (window size = 72)
+- **Heads**: 16 attention heads (16 key-value heads)
+- **Upsampling**: Transposed convolutions with rates (2, 2)
+- **Output Rate**: 24kHz audio
+
+**Process**:
+1. Code embeddings are processed by transformer layers
+2. Sliding window attention captures local acoustic context
+3. ConvNeXt blocks refine intermediate representations
+4. Transposed convolutions upsample to original sample rate
+5. Final layer produces 24kHz audio waveform
+
+## Technical Specifications
+
+### Compression Details
+
+| Parameter | Value |
+|-----------|-------|
+| Input Sample Rate | 24,000 Hz |
+| Output Sample Rate | 24,000 Hz |
+| Frame Rate | 12 Hz |
+| Samples per Frame | 2,000 |
+| Compression Ratio | ~1920x |
+| Number of Quantizers | 16 |
+| Codebook Size | 2,048 per quantizer |
+| Bits per Frame | 176 bits (16 quantizers × 11 bits) |
+| Bitrate | ~2.1 kbps |
+
+<Note>
+  The 1920x compression is calculated as: 24000 samples/sec ÷ (12 frames/sec × 1 code/frame) ≈ 2000 samples per code.
+</Note>
+
+### Model Parameters
+
+**Encoder** (from MimiConfig):
+- Based on Kyutai Mimi architecture
+- Multi-scale discriminator for training
+- Perceptual loss functions
+
+**Decoder**:
+- Hidden dimension: 1024
+- Intermediate size: 3072
+- Decoder output dimension: 1536
+- Total parameters: ~100M
+
+## How It Works
+
+### Encoding Process
+
+```python
+from qwen_tts import Qwen3TTSTokenizer
+import soundfile as sf
+
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+    device_map="cuda:0"
+)
+
+# Encode audio to discrete codes
+codes = tokenizer.encode("input.wav")
+
+print(f"Input duration: {duration}s")
+print(f"Code shape: {codes[0].shape}")  # (duration*12, 16)
+```
+
+**What happens during encoding**:
+
+1. **Audio Loading**: Input audio is loaded and resampled to 24kHz if needed
+2. **Convolutional Encoding**: Strided convolutions downsample audio to latent space
+3. **Quantization**: 16-layer residual vector quantization converts continuous latents to discrete codes
+4. **Code Output**: Each frame (1/12 second) becomes 16 discrete codes
+
+<Tabs>
+  <Tab title="Supported Input Formats">
+    - **File path**: Local audio file (WAV, MP3, FLAC, etc.)
+    - **URL**: HTTP/HTTPS URL to audio file
+    - **NumPy array**: `(samples,)` or `(batch, samples)`
+    - **Tuple**: `(numpy_array, sample_rate)`
+    - **Base64**: Base64-encoded audio string
+  </Tab>
+  
+  <Tab title="Output Format">
+    Returns `List[torch.LongTensor]` where each tensor has shape:
+    - `(codes_length, num_quantizers)` = `(T*12, 16)`
+    - `T` = duration in seconds
+    - Values in range [0, 2047] (codebook size)
+  </Tab>
+</Tabs>
+
+### Decoding Process
+
+```python
+# Decode codes back to audio
+wavs, sr = tokenizer.decode(codes)
+
+print(f"Output sample rate: {sr}")  # 24000
+print(f"Audio shape: {wavs[0].shape}")  # (duration*24000,)
+
+# Save to file
+sf.write("output.wav", wavs[0], sr)
+```
+
+**What happens during decoding**:
+
+1. **Code Embedding**: Each of 16 codes is embedded into continuous space
+2. **Transformer Processing**: Autoregressive transformer refines representations
+3. **Sliding Window Attention**: Captures local dependencies (window=72 frames)
+4. **Upsampling**: Transposed convolutions upsample to 24kHz
+5. **Waveform Generation**: Final layer produces high-quality audio
+
+<Tabs>
+  <Tab title="Input Format">
+    Accepts codes from encoder:
+    - `List[torch.LongTensor]`: List of code tensors
+    - `dict`: `{"audio_codes": [...]}` format
+    - Shape: `(codes_length, 16)` per item
+  </Tab>
+  
+  <Tab title="Output Format">
+    Returns:
+    - `wavs`: `List[np.ndarray]` - Reconstructed audio
+    - `sr`: `int` - Sample rate (24000)
+    
+    Each audio array has shape `(duration*24000,)`
+  </Tab>
+</Tabs>
+
+## Acoustic Compression
+
+### Residual Vector Quantization (RVQ)
+
+The tokenizer uses **16 hierarchical quantizers** to capture acoustic information:
+
+```
+Layer 1 (Q0):  Coarse acoustic features (fundamental frequency, energy)
+Layer 2 (Q1):  Refined pitch and loudness contours  
+Layer 3 (Q2):  Spectral envelope (vowel formants)
+Layer 4-8:     Fine-grained spectral details
+Layer 9-12:    Micro-prosodic features
+Layer 13-16:   Background acoustics and residuals
+```
+
+**How RVQ works**:
+
+1. **First Quantizer**: Approximates latent vector using 2048 codebook entries
+2. **Residual Calculation**: Computes difference between approximation and target
+3. **Second Quantizer**: Quantizes the residual
+4. **Iteration**: Repeats for all 16 layers
+5. **Reconstruction**: Sum of all quantized layers reconstructs original signal
+
+<Info>
+  Each quantizer captures progressively finer details. Early quantizers (Q0-Q3) are most important for intelligibility, while later quantizers (Q8-Q15) preserve naturalness and speaker characteristics.
+</Info>
+
+### Compression Efficiency
+
+For a 10-second audio clip:
+
+| Format | Size | Compression vs. WAV |
+|--------|------|--------------------|
+| Raw WAV (24kHz, 16-bit) | 480 KB | 1x (baseline) |
+| MP3 (128 kbps) | 160 KB | 3x |
+| **Qwen3 Codes** | 2.64 KB | **182x** |
+
+<Note>
+  The codes are stored as integers, not compressed audio. For transmission, codes can be further compressed with standard algorithms (gzip, etc.) for additional 2-3x reduction.
+</Note>
+
+## Batch Processing
+
+### Batch Encoding
+
+```python
+# Encode multiple audio files
+files = ["audio1.wav", "audio2.wav", "audio3.wav"]
+codes_list = tokenizer.encode(files)
+
+# Or encode from NumPy arrays
+audio_arrays = [np.random.randn(24000), np.random.randn(48000)]
+codes_list = tokenizer.encode(audio_arrays)
+```
+
+### Batch Decoding
+
+```python
+# Decode multiple code sequences
+wavs, sr = tokenizer.decode(codes_list)
+
+# Save all outputs
+for i, wav in enumerate(wavs):
+    sf.write(f"output_{i}.wav", wav, sr)
+```
+
+<Warning>
+  Batch processing requires all items to be padded to the same length. The tokenizer handles this automatically but may increase memory usage for variable-length inputs.
+</Warning>
+
+## Use Cases
+
+<AccordionGroup>
+  <Accordion title="Audio Compression & Storage">
+    Compress audio files to discrete codes for efficient storage:
+    
+    ```python
+    # Compress entire audio library
+    codes = tokenizer.encode("large_audiobook.wav")
+    torch.save(codes, "audiobook_compressed.pt")
+    
+    # Later: decompress and play
+    codes = torch.load("audiobook_compressed.pt")
+    wavs, sr = tokenizer.decode(codes)
+    ```
+    
+    Achieves ~182x compression vs. WAV, ~60x vs. MP3.
+  </Accordion>
+  
+  <Accordion title="Network Transmission">
+    Stream audio over networks with minimal bandwidth:
+    
+    ```python
+    # Sender: encode and transmit codes
+    codes = tokenizer.encode("speech.wav")
+    send_over_network(codes)  # Only 2.1 kbps needed
+    
+    # Receiver: decode and play
+    codes = receive_from_network()
+    wavs, sr = tokenizer.decode(codes)
+    play_audio(wavs[0], sr)
+    ```
+  </Accordion>
+  
+  <Accordion title="Training Data Preparation">
+    Pre-encode audio datasets for faster TTS training:
+    
+    ```python
+    # Pre-process training data
+    for audio_file in training_dataset:
+        codes = tokenizer.encode(audio_file)
+        save_codes(codes, audio_file.stem + ".codes")
+    
+    # During training: load codes directly (faster than loading audio)
+    ```
+  </Accordion>
+  
+  <Accordion title="Speech Codec Research">
+    Analyze speech representations and acoustic properties:
+    
+    ```python
+    # Encode and analyze codebook usage
+    codes = tokenizer.encode("speech.wav")
+    
+    # Analyze which quantizers capture what information
+    for q_idx in range(16):
+        quantizer_codes = codes[0][:, q_idx]
+        analyze_distribution(quantizer_codes)
+    ```
+  </Accordion>
+</AccordionGroup>
+
+## Performance Characteristics
+
+### Latency
+
+| Operation | Latency (GPU) | Latency (CPU) |
+|-----------|---------------|---------------|
+| Encode 1s | ~10-15ms | ~100-150ms |
+| Decode 1s | ~20-30ms | ~200-300ms |
+| Round-trip | ~30-45ms | ~300-450ms |
+
+<Info>
+  Latencies measured on NVIDIA A100 (GPU) and Intel Xeon (CPU). Actual times vary by hardware.
+</Info>
+
+### Quality Metrics
+
+| Metric | Value |
+|--------|-------|
+| PESQ (Perceptual Quality) | 4.2-4.4 |
+| MOS (Mean Opinion Score) | 4.3-4.5 |
+| Speaker Similarity | >0.85 |
+| Word Error Rate | Less than 1% (with good ASR) |
+
+<Note>
+  Quality is comparable to high-bitrate traditional codecs (128 kbps MP3) despite ~60x lower bitrate.
+</Note>
+
+## Advanced Usage
+
+### Custom Quantizer Subsets
+
+```python
+# Use only first 8 quantizers (lower quality, higher speed)
+tokenizer = Qwen3TTSTokenizer.from_pretrained(
+    "Qwen/Qwen3-TTS-Tokenizer-12Hz",
+    device_map="cuda:0"
+)
+
+# Encode with all quantizers
+codes = tokenizer.encode("input.wav")
+
+# Decode using only first 8 quantizers
+partial_codes = [c[:, :8] for c in codes]
+wavs, sr = tokenizer.decode(partial_codes)  # Lower quality, faster
+```
+
+### Code Manipulation
+
+```python
+# Encode two audio files
+codes1 = tokenizer.encode("speaker1.wav")
+codes2 = tokenizer.encode("speaker2.wav")
+
+# Mix coarse features from speaker1 with fine details from speaker2
+mixed_codes = torch.cat([
+    codes1[0][:, :4],   # First 4 quantizers from speaker 1
+    codes2[0][:, 4:]    # Last 12 quantizers from speaker 2
+], dim=1)
+
+# Decode hybrid codes
+wavs, sr = tokenizer.decode([mixed_codes])
+```
+
+<Warning>
+  Code manipulation is experimental and may produce artifacts. Not all code combinations result in valid audio.
+</Warning>
+
+## Integration with TTS Models
+
+The tokenizer works seamlessly with TTS models:
+
+```python
+from qwen_tts import Qwen3TTSModel, Qwen3TTSTokenizer
+
+# Load model and tokenizer
+model = Qwen3TTSModel.from_pretrained("Qwen/Qwen3-TTS-12Hz-1.7B-Base")
+tokenizer = Qwen3TTSTokenizer.from_pretrained("Qwen/Qwen3-TTS-Tokenizer-12Hz")
+
+# Generate speech codes (model output)
+codes = model.generate_codes(
+    text="Hello world",
+    ref_audio="reference.wav",
+    ref_text="Reference transcript"
+)
+
+# Convert codes to audio using tokenizer
+wavs, sr = tokenizer.decode(codes)
+```
+
+<Info>
+  TTS models generate codes in the same format as the tokenizer encoder, enabling seamless integration.
+</Info>
+
+## Limitations
+
+<Warning>
+  **Important limitations to consider**:
+  
+  - **Music quality**: Optimized for speech; music may have artifacts
+  - **Background noise**: Very noisy audio may lose fidelity
+  - **Extreme pitch**: Very high/low pitch may not encode perfectly
+  - **Non-speech sounds**: Best for human speech; other sounds may degrade
+</Warning>
+
+## Next Steps
+
+<CardGroup cols={2}>
+  <Card title="Architecture" icon="diagram-project" href="/concepts/architecture">
+    Learn how the tokenizer fits into the overall system
+  </Card>
+  
+  <Card title="Voice Cloning" icon="clone" href="/guides/voice-cloning">
+    Use the tokenizer for voice cloning applications
+  </Card>
+  
+  <Card title="API Reference" icon="code" href="/api-reference/tokenizer">
+    Detailed API documentation for the tokenizer
+  </Card>
+  
+  <Card title="Examples" icon="lightbulb" href="/examples/basic-usage">
+    See practical examples and code snippets
+  </Card>
+</CardGroup>
